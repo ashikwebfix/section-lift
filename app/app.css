@@ -1,0 +1,355 @@
+:root {
+  --efx-primary: #008060;
+  --efx-primary-hover: #006e52;
+  --efx-bg-gradient: linear-gradient(145deg, #f0f2f5 0%, #e2e8f0 100%);
+  --efx-surface: rgba(255, 255, 255, 0.65);
+  --efx-surface-solid: #ffffff;
+  --efx-border: rgba(255, 255, 255, 0.8);
+  --efx-border-solid: #e2e8f0;
+  --efx-text-main: #111827;
+  --efx-text-subdued: #4b5563;
+  
+  --efx-shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --efx-shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --efx-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  --efx-radius-sm: 8px;
+  --efx-radius-md: 12px;
+  --efx-radius-lg: 20px;
+  --efx-radius-pill: 9999px;
+  
+  --efx-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  background: var(--efx-bg-gradient);
+  background-attachment: fixed;
+  color: var(--efx-text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism Card */
+.efx-glass-card {
+  background: var(--efx-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--efx-border);
+  border-radius: var(--efx-radius-lg);
+  padding: 20px 15px;
+  box-shadow: var(--efx-shadow-sm);
+  transition: var(--efx-transition);
+}
+
+.efx-glass-card:hover {
+  box-shadow: var(--efx-shadow-md);
+}
+
+.efx-glass-card-interactive {
+  cursor: pointer;
+}
+
+.efx-glass-card-interactive:hover {
+  box-shadow: var(--efx-shadow-hover);
+  transform: translateY(-4px);
+}
+
+/* Solid Card */
+.efx-solid-card {
+  background: var(--efx-surface-solid);
+  border: 1px solid var(--efx-border-solid);
+  border-radius: var(--efx-radius-lg);
+  padding: 20px 15px;
+  box-shadow: var(--efx-shadow-sm);
+  transition: var(--efx-transition);
+}
+
+/* Grids */
+.efx-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 32px;
+}
+
+.efx-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 32px;
+}
+
+/* Typography */
+.efx-heading-xl {
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0 0 16px 0;
+  background: linear-gradient(135deg, #111827 0%, #4b5563 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.efx-heading-lg {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px 0;
+  color: var(--efx-text-main);
+}
+
+.efx-heading-md {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px 0;
+  color: var(--efx-text-main);
+}
+
+.efx-text-subdued {
+  color: var(--efx-text-subdued);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.efx-text-body {
+  color: var(--efx-text-main);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+}
+
+/* Badges */
+.efx-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: var(--efx-radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(0, 128, 96, 0.1);
+  color: var(--efx-primary);
+  margin-bottom: 12px;
+  box-shadow: inset 0 0 0 1px rgba(0, 128, 96, 0.2);
+}
+
+.efx-badge-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.efx-badge-neutral {
+  background: rgba(107, 114, 128, 0.1);
+  color: #4b5563;
+  box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.2);
+}
+
+/* Buttons */
+.efx-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: var(--efx-radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--efx-transition);
+  border: none;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.efx-button-primary {
+  background: #111827;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(17, 24, 39, 0.2);
+}
+
+.efx-button-primary:hover {
+  background: #374151;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(17, 24, 39, 0.25);
+}
+
+.efx-button-secondary {
+  background: white;
+  color: var(--efx-text-main);
+  border: 1px solid var(--efx-border-solid);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.efx-button-secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+.efx-button-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.efx-button-danger:hover {
+  background: #dc2626;
+}
+
+.efx-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Forms */
+.efx-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--efx-radius-md);
+  border: 1px solid var(--efx-border-solid);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  color: var(--efx-text-main);
+  transition: var(--efx-transition);
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.efx-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  background: #ffffff;
+}
+
+/* Flex Utilities */
+.efx-flex { display: flex; }
+.efx-flex-col { flex-direction: column; }
+.efx-flex-row { flex-direction: row; }
+.efx-items-center { align-items: center; }
+.efx-items-end { align-items: flex-end; }
+.efx-justify-between { justify-content: space-between; }
+.efx-justify-center { justify-content: center; }
+.efx-justify-end { justify-content: flex-end; }
+.efx-gap-xs { gap: 4px; }
+.efx-gap-sm { gap: 8px; }
+.efx-gap-md { gap: 16px; }
+.efx-gap-lg { gap: 24px; }
+.efx-gap-xl { gap: 40px; }
+.efx-mt-xs { margin-top: 4px; }
+.efx-mt-sm { margin-top: 8px; }
+.efx-mt-md { margin-top: 16px; }
+.efx-mt-lg { margin-top: 24px; }
+.efx-mt-xl { margin-top: 40px; }
+.efx-mb-xs { margin-bottom: 4px; }
+.efx-mb-sm { margin-bottom: 8px; }
+.efx-mb-md { margin-bottom: 16px; }
+.efx-mb-lg { margin-bottom: 24px; }
+.efx-mb-xl { margin-bottom: 40px; }
+
+/* Image Placeholder */
+.efx-preview-skeleton {
+  width: 100%;
+  height: 200px;
+  background: linear-gradient(110deg, #e5e7eb 8%, #f3f4f6 18%, #e5e7eb 33%);
+  background-size: 200% 100%;
+  animation: 1.5s shine linear infinite;
+  border-radius: var(--efx-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes shine {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+/* Premium Card (Neon Border & Glow) */
+.efx-premium-card {
+  position: relative;
+  background: transparent !important;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.2) !important;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.efx-premium-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0.15) 60%, #ffd700 80%, #ffea00 100%);
+  animation: efx-spin 4s linear infinite;
+  z-index: -2;
+}
+
+.efx-premium-card::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: var(--efx-surface-solid);
+  border-radius: calc(var(--efx-radius-lg) - 2px);
+  z-index: -1;
+}
+
+/* Premium Button (Neon Border) */
+.efx-button-premium {
+  position: relative;
+  background: transparent !important;
+  border: none !important;
+  padding: 12px 24px !important;
+  overflow: hidden;
+  z-index: 1;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4) !important;
+}
+
+.efx-button-premium::before {
+  content: "";
+  position: absolute;
+  top: -100%;
+  left: -50%;
+  width: 200%;
+  height: 300%;
+  background: conic-gradient(from 0deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0.15) 60%, #ffd700 80%, #ffea00 100%);
+  animation: efx-spin 2s linear infinite;
+  z-index: -2;
+}
+
+.efx-button-premium::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: #111827; /* Matches efx-button-primary */
+  z-index: -1;
+  border-radius: calc(var(--efx-radius-md) - 2px);
+}
+
+.efx-button-premium:hover::after {
+  background: #374151; /* Matches efx-button-primary hover */
+}
+
+@keyframes efx-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.efx-badge-premium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 215, 0, 0.1);
+  color: #d4af37;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model Shop {
+  id               String    @id @default(uuid())
+  shopify_shop_id  String?   @unique
+  shop_domain      String    @unique
+  installed_at     DateTime  @default(now())
+  uninstalled_at   DateTime?
+  status           String    @default("ACTIVE")
+  default_theme_id String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  sort_order  Int       @default(0)
+  sections    Section[]
+}
+
+model Section {
+  id                String           @id @default(uuid())
+  sku               String           @unique
+  name              String
+  handle            String           @unique
+  category_id       String?
+  short_description String?
+  full_description  String?
+  price             Float            @default(0.0)
+  is_free           Boolean          @default(true)
+  is_exclusive      Boolean          @default(false)
+  is_featured       Boolean          @default(false)
+  type              String           @default("SECTION")
+  status            String           @default("PUBLISHED")
+  demo_url          String?
+  preview_image_url String?
+  tag               String?
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+  
+  category          Category?        @relation(fields: [category_id], references: [id])
+  versions          SectionVersion[]
+  entitlements      Entitlement[]
+  installations     Installation[]
+}
+
+model SectionVersion {
+  id                     String         @id @default(uuid())
+  section_id             String
+  version                String
+  liquid_source_location String?
+  liquid_content         String?
+  checksum               String?
+  is_breaking            Boolean        @default(false)
+  published_at           DateTime       @default(now())
+  
+  section                Section        @relation(fields: [section_id], references: [id])
+  installations          Installation[]
+}
+
+model Entitlement {
+  id          String    @id @default(uuid())
+  shop_domain String
+  section_id  String
+  source_type String    @default("FREE")
+  status      String    @default("ACTIVE")
+  granted_at  DateTime  @default(now())
+  
+  section     Section   @relation(fields: [section_id], references: [id])
+}
+
+model Installation {
+  id                 String         @id @default(uuid())
+  shop_domain        String
+  section_id         String
+  section_version_id String?
+  theme_id           String
+  theme_name         String?
+  theme_role         String?
+  filename           String
+  status             String         @default("ACTIVE")
+  installed_at       DateTime       @default(now())
+  
+  section            Section        @relation(fields: [section_id], references: [id])
+  section_version    SectionVersion? @relation(fields: [section_version_id], references: [id])
+}
