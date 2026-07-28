@@ -7,6 +7,13 @@ import { addDocumentResponseHeaders } from "./shopify.server";
 
 export const streamTimeout = 5000;
 
+export function handleError(error, { request }) {
+  // Don't log Response errors (these are intentional throws from authenticate.webhook)
+  if (!(error instanceof Response)) {
+    console.error(error);
+  }
+}
+
 export default async function handleRequest(
   request,
   responseStatusCode,

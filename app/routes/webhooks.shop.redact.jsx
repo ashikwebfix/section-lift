@@ -13,16 +13,13 @@ export const action = async ({ request }) => {
   }
 
   try {
-    const { payload, session, topic, shop } = await authenticate.webhook(request);
+    const { shop, topic, payload } = await authenticate.webhook(request);
     console.log(`Received ${topic} webhook for ${shop}`);
-    const current = payload.current;
 
-    if (session) {
-      await db.session.update({
-        where: { id: session.id },
-        data: { scope: current.toString() },
-      });
-    }
+    // Shopify sends this 48 hours after an app is uninstalled.
+    // You must delete all shop data from your database.
+    await db.session.deleteMany({ where: { shop } });
+    await db.shop.deleteMany({ where: { shop_domain: shop } });
 
     return new Response();
   } catch (err) {
