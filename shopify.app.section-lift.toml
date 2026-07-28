@@ -2,7 +2,7 @@
 
 client_id = "e01f29687bb96f5f6ce802cb04ffdd00"
 name = "Section Lift"
-application_url = "https://example.com"
+application_url = "https://section-lift.ecomfixr.com"
 embedded = true
 
 [webhooks]
@@ -33,7 +33,7 @@ api_version = "2026-10"
 scopes = "read_themes,write_metaobject_definitions,write_metaobjects,write_products,write_themes"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://section-lift.ecomfixr.com/api/auth" ]
 
 [build]
 automatically_update_urls_on_dev = true
