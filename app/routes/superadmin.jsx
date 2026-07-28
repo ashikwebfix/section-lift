@@ -24,6 +24,7 @@ export default function SuperadminLayout() {
     { name: "Dashboard", path: "/superadmin" },
     { name: "Sections", path: "/superadmin/sections" },
     { name: "Categories", path: "/superadmin/categories" },
+    { name: "Users", path: "/superadmin/users" },
   ];
 
   return (

@@ -3,7 +3,7 @@ import prisma from "../db.server";
 
 export const loader = async () => {
   const sections = await prisma.section.findMany({
-    include: { category: true },
+    include: { category: true, author: true },
     orderBy: { created_at: "desc" }
   });
   return { sections };
@@ -31,6 +31,7 @@ export default function SuperadminSectionsList() {
               <th className="efx-text-subdued" style={{ padding: '16px 24px', fontWeight: 500 }}>Preview</th>
               <th className="efx-text-subdued" style={{ padding: '16px 24px', fontWeight: 500 }}>Name</th>
               <th className="efx-text-subdued" style={{ padding: '16px 24px', fontWeight: 500 }}>Category</th>
+              <th className="efx-text-subdued" style={{ padding: '16px 24px', fontWeight: 500 }}>Added By</th>
               <th className="efx-text-subdued" style={{ padding: '16px 24px', fontWeight: 500 }}>Price</th>
               <th className="efx-text-subdued" style={{ padding: '16px 24px', fontWeight: 500 }}>Status</th>
               <th className="efx-text-subdued" style={{ padding: '16px 24px', fontWeight: 500, textAlign: 'right' }}>Actions</th>
@@ -52,6 +53,9 @@ export default function SuperadminSectionsList() {
                 </td>
                 <td style={{ padding: '16px 24px' }}>
                   <span className="efx-badge" style={{ margin: 0 }}>{section.category?.name || 'Uncategorized'}</span>
+                </td>
+                <td style={{ padding: '16px 24px' }}>
+                  <span className="efx-text-body" style={{ margin: 0 }}>{section.author?.name || 'Master Admin'}</span>
                 </td>
                 <td style={{ padding: '16px 24px' }}>
                   <span className="efx-text-body" style={{ margin: 0 }}>{section.is_free ? 'Free' : `$${section.price}`}</span>

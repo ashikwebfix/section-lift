@@ -45,6 +45,17 @@ model Shop {
   updated_at       DateTime  @updatedAt
 }
 
+model AdminUser {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  name          String
+  role          String    @default("ADMIN")
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  sections      Section[]
+}
+
 model Category {
   id          String    @id @default(uuid())
   name        String
@@ -70,10 +81,12 @@ model Section {
   demo_url          String?
   preview_image_url String?
   tag               String?
+  author_id         String?
   created_at        DateTime         @default(now())
   updated_at        DateTime         @updatedAt
   
   category          Category?        @relation(fields: [category_id], references: [id])
+  author            AdminUser?       @relation(fields: [author_id], references: [id])
   versions          SectionVersion[]
   entitlements      Entitlement[]
   installations     Installation[]

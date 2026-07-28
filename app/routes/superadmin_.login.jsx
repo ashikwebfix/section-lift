@@ -1,16 +1,17 @@
 import { useActionData, Form, redirect } from "react-router";
 import { sessionStorage } from "../superadmin.server";
 
+import bcrypt from "bcryptjs";
+import prisma from "../db.server";
+
 export const action = async ({ request }) => {
   const formData = await request.formData();
+  const email = formData.get("email");
   const password = formData.get("password");
   
   const correctPassword = process.env.ADMIN_PASSWORD || "admin123";
 
-  console.log("Login attempt:", { passwordLength: password?.length, correctLength: correctPassword?.length });
-
-  if (password === correctPassword) {
-    console.log("Password correct, setting session...");
+  if (email === "admin" && password === correctPassword) {
     const session = await sessionStorage.getSession();
     session.set("adminId", "superadmin");
     return redirect("/superadmin", {
@@ -20,7 +21,23 @@ export const action = async ({ request }) => {
     });
   }
 
-  return { error: "Invalid password" };
+  if (email && password) {
+    const user = await prisma.adminUser.findUnique({ where: { email: email.toString() } });
+    if (user) {
+      const isValid = await bcrypt.compare(password.toString(), user.password_hash);
+      if (isValid) {
+        const session = await sessionStorage.getSession();
+        session.set("adminId", user.id);
+        return redirect("/superadmin", {
+          headers: {
+            "Set-Cookie": await sessionStorage.commitSession(session),
+          },
+        });
+      }
+    }
+  }
+
+  return { error: "Invalid credentials" };
 };
 
 export default function SuperadminLogin() {
@@ -42,12 +59,19 @@ export default function SuperadminLogin() {
 
         <Form method="post" className="efx-flex efx-flex-col efx-gap-md">
           <input 
+            type="text" 
+            name="email" 
+            placeholder="Email (or 'admin' for master)" 
+            className="efx-input" 
+            required
+            autoFocus
+          />
+          <input 
             type="password" 
             name="password" 
             placeholder="Password" 
             className="efx-input" 
             required
-            autoFocus
           />
           <button type="submit" className="efx-button efx-button-primary">
             Login

@@ -2,6 +2,7 @@ import { useLoaderData, Form, redirect, useNavigation, useActionData } from "rea
 import fs from "node:fs/promises";
 import path from "node:path";
 import prisma from "../db.server";
+import { requireSuperadmin } from "../superadmin.server";
 
 export const loader = async () => {
   const categories = await prisma.category.findMany({ orderBy: { sort_order: "asc" } });
@@ -38,11 +39,15 @@ export const action = async ({ request }) => {
     preview_image_url = `/uploads/${filename}`;
   }
   
+  const session = await requireSuperadmin(request);
+  const adminId = session.get("adminId");
+  const author_id = adminId === "superadmin" ? null : adminId;
+  
   let section;
   try {
     section = await prisma.section.create({
       data: {
-        sku, name, handle, category_id, price, is_free, is_exclusive, is_featured, type, short_description, full_description, preview_image_url, tag,
+        sku, name, handle, category_id, price, is_free, is_exclusive, is_featured, type, short_description, full_description, preview_image_url, tag, author_id,
         status: 'PUBLISHED'
       }
     });
