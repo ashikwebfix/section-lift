@@ -50,63 +50,68 @@ export const action = async ({ request }) => {
 
     const activeVersion = section.versions[0];
     const liquidContent = activeVersion.liquid_content || "";
-
-    const themeResponse = await admin.graphql(
-      `#graphql
-      query getTheme($id: ID!) {
-        theme(id: $id) {
-          name
-          role
-        }
-      }`,
-      { variables: { id: themeId } }
-    );
-    const themeJson = await themeResponse.json();
-    const themeData = themeJson.data.theme;
-
-    const filename = `sections/${section.handle}.liquid`;
-
-    const upsertResponse = await admin.graphql(
-      `#graphql
-      mutation themeFilesUpsert($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
-        themeFilesUpsert(themeId: $themeId, files: $files) {
-          upsertedThemeFiles {
-            filename
+    
+    try {
+      const themeResponse = await admin.graphql(
+        `#graphql
+        query getTheme($id: ID!) {
+          theme(id: $id) {
+            name
+            role
           }
-          userErrors {
-            field
-            message
+        }`,
+        { variables: { id: themeId } }
+      );
+      const themeJson = await themeResponse.json();
+      const themeData = themeJson.data?.theme;
+
+      const filename = `sections/${section.handle}.liquid`;
+
+      const upsertResponse = await admin.graphql(
+        `#graphql
+        mutation themeFilesUpsert($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
+          themeFilesUpsert(themeId: $themeId, files: $files) {
+            upsertedThemeFiles {
+              filename
+            }
+            userErrors {
+              field
+              message
+            }
           }
+        }`,
+        {
+          variables: {
+            themeId: themeId,
+            files: [{ filename, body: { type: "TEXT", value: liquidContent } }],
+          },
         }
-      }`,
-      {
-        variables: {
-          themeId: themeId,
-          files: [{ filename, body: { type: "TEXT", value: liquidContent } }],
-        },
+      );
+      const upsertJson = await upsertResponse.json();
+      const userErrors = upsertJson.data?.themeFilesUpsert?.userErrors;
+
+      if (userErrors && userErrors.length > 0) {
+        return { success: false, error: userErrors[0].message };
       }
-    );
-    const upsertJson = await upsertResponse.json();
-    const userErrors = upsertJson.data.themeFilesUpsert.userErrors;
 
-    if (userErrors && userErrors.length > 0) {
-      return { success: false, error: userErrors[0].message };
+      await prisma.installation.create({
+        data: {
+          shop_domain: session.shop,
+          section_id: section.id,
+          section_version_id: activeVersion.id,
+          theme_id: themeId,
+          theme_name: themeData?.name || "Unknown",
+          theme_role: themeData?.role || "Unknown",
+          filename: filename,
+          status: "ACTIVE"
+        }
+      });
+
+      return { success: true, sectionName: section.name };
+    } catch (err) {
+      console.error("Install action error:", err);
+      return { success: false, error: `Installation failed: ${err.message || "An unexpected error occurred"}` };
     }
-
-    await prisma.installation.create({
-      data: {
-        shop_domain: session.shop,
-        section_id: section.id,
-        section_version_id: activeVersion.id,
-        theme_id: themeId,
-        theme_name: themeData?.name || "Unknown",
-        theme_role: themeData?.role || "Unknown",
-        filename: filename,
-        status: "ACTIVE"
-      }
-    });
-
-    return { success: true, sectionName: section.name };
   }
 
   if (intent === "remove") {
