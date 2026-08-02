@@ -244,7 +244,7 @@ export const action = async ({ request }) => {
       return { success: true, action: "installed", themeId, sectionName: section.name };
     } catch (err) {
       console.error("Install action error:", err);
-      return { success: false, error: "An unexpected error occurred during installation.", sectionName: section.name };
+      return { success: false, error: `Installation failed: ${err.message || "An unexpected error occurred"}`, sectionName: section.name };
     }
   }
 
