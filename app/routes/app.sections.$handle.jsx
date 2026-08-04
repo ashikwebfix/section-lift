@@ -205,85 +205,98 @@ export default function SectionDetail() {
   const currentlyOwned = isOwned || (fetcher.data?.success && fetcher.data?.action === "claimed");
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-lg" style={{ padding: '32px' }}>
-      <button 
-        onClick={() => navigate("/app/discover")}
-        className="efx-button efx-button-secondary"
-        style={{ alignSelf: 'flex-start', padding: '6px 12px' }}
-      >
-        &larr; Back to Discover
-      </button>
-
-      <div className="efx-flex efx-flex-col efx-gap-sm efx-mb-md">
-        <span className="efx-text-subdued" style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {section.category?.name}
+    <div className="efx-flex efx-flex-col efx-gap-lg" style={{ padding: '40px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+      
+      {/* Header */}
+      <div className="efx-flex efx-items-center efx-justify-between efx-mb-md">
+        <button 
+          onClick={() => navigate(-1)}
+          className="efx-button efx-button-secondary"
+          style={{ alignSelf: 'flex-start', padding: '8px 16px', background: 'transparent', border: '1px solid var(--efx-border-solid)' }}
+        >
+          &larr; Back
+        </button>
+        <span className="efx-badge" style={{ margin: 0, background: 'rgba(17, 24, 39, 0.05)', color: '#4b5563', boxShadow: 'inset 0 0 0 1px rgba(17, 24, 39, 0.1)' }}>
+          {section.category?.name || 'Section'}
         </span>
-        <h1 className="efx-heading-xl" style={{ margin: 0 }}>{section.name}</h1>
       </div>
 
-      <div className="efx-grid-2">
-        <div className={`efx-glass-card ${section.is_exclusive ? 'efx-premium-card' : ''}`} style={{ padding: section.is_exclusive ? '2px' : 0 }}>
-           {section.preview_image_url ? (
-             <img src={section.preview_image_url} alt={section.name} style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: '300px', display: 'block' }} />
-           ) : (
-             <div style={{ height: '100%', minHeight: '300px', backgroundColor: '#e4e5e7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-               <span className="efx-text-subdued">Section Preview</span>
-             </div>
-           )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'flex-start' }}>
+        
+        {/* Image Container (Left) */}
+        <div style={{ flex: '1 1 600px', minWidth: '0' }}>
+          <div className="efx-glass-card" style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+             {section.preview_image_url ? (
+               <img src={section.preview_image_url} alt={section.name} style={{ width: '100%', maxWidth: '100%', height: 'auto', display: 'block' }} />
+             ) : (
+               <div style={{ height: '400px', backgroundColor: '#e4e5e7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                 <span className="efx-text-subdued">Section Preview</span>
+               </div>
+             )}
+          </div>
         </div>
 
-        <div className="efx-flex efx-flex-col efx-gap-md">
-          <div className="efx-solid-card efx-flex efx-flex-col efx-gap-md">
-            <h2 className="efx-heading-lg">{section.is_free ? "Free" : `$${section.price.toFixed(2)}`}</h2>
-            <p className="efx-text-body">{section.full_description}</p>
+        {/* Sidebar (Right) */}
+        <div style={{ flex: '0 0 380px', width: '100%', position: 'sticky', top: '24px' }}>
+          <div className="efx-solid-card efx-flex efx-flex-col efx-gap-lg" style={{ padding: '32px' }}>
+            <div className="efx-flex efx-flex-col efx-gap-xs">
+              <h1 className="efx-heading-xl" style={{ margin: 0, fontSize: '2.25rem' }}>{section.name}</h1>
+              <h2 className="efx-heading-lg" style={{ margin: '8px 0 0 0', color: '#059669' }}>
+                {section.is_free ? "Free" : `$${section.price.toFixed(2)}`}
+              </h2>
+            </div>
             
-            <div className="efx-mt-sm">
+            <p className="efx-text-body efx-text-subdued" style={{ fontSize: '1.1rem', lineHeight: 1.6 }}>{section.full_description}</p>
+            
+            <div style={{ height: '1px', background: 'var(--efx-border-solid)', margin: '8px 0' }}></div>
+            
+            <div className="efx-flex efx-flex-col efx-gap-md">
               {currentlyOwned ? (
-                <Link to="/app/my-sections" className="efx-button efx-button-primary" style={{ textDecoration: 'none' }}>
+                <Link to="/app/my-sections" className="efx-button efx-button-primary" style={{ textDecoration: 'none', padding: '16px', fontSize: '1.05rem', justifyContent: 'center' }}>
                   Go to My Sections
                 </Link>
               ) : section.is_free ? (
-                <button className="efx-button efx-button-primary" onClick={handleClaim} disabled={isClaiming}>
+                <button className="efx-button efx-button-primary" onClick={handleClaim} disabled={isClaiming} style={{ padding: '16px', fontSize: '1.05rem' }}>
                   {isClaiming ? 'Claiming...' : 'Claim Free Section'}
                 </button>
               ) : section.is_exclusive ? (
-                <button className="efx-button efx-button-primary efx-button-premium" onClick={handlePurchase} disabled={isPurchasing}>
+                <button className="efx-button" onClick={handlePurchase} disabled={isPurchasing} style={{ padding: '16px', fontSize: '1.05rem', fontWeight: 700, color: '#000', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', border: 'none', boxShadow: '0 4px 10px rgba(245, 158, 11, 0.3)' }}>
                   {isPurchasing ? 'Processing...' : 'Purchase Section (Premium)'}
                 </button>
               ) : hasSubscription ? (
                 claimsThisMonth < subscriptionLimit ? (
-                  <button className="efx-button efx-button-primary" onClick={handleClaimSub} disabled={isClaimingSub}>
+                  <button className="efx-button efx-button-primary" onClick={handleClaimSub} disabled={isClaimingSub} style={{ padding: '16px', fontSize: '1.05rem' }}>
                     {isClaimingSub ? 'Claiming...' : `Claim with Subscription (${subscriptionLimit - claimsThisMonth} left)`}
                   </button>
                 ) : (
                   <div className="efx-flex efx-flex-col efx-gap-sm">
-                    <button className="efx-button efx-button-primary" onClick={handlePurchase} disabled={isPurchasing}>
+                    <button className="efx-button efx-button-primary" onClick={handlePurchase} disabled={isPurchasing} style={{ padding: '16px', fontSize: '1.05rem' }}>
                       {isPurchasing ? 'Processing...' : 'Purchase Section'}
                     </button>
-                    <p className="efx-text-subdued efx-text-sm" style={{ margin: 0 }}>You have reached your monthly subscription limit.</p>
+                    <p className="efx-text-subdued efx-text-sm" style={{ margin: 0, textAlign: 'center' }}>You have reached your monthly subscription limit.</p>
                   </div>
                 )
               ) : (
                 <div className="efx-flex efx-flex-col efx-gap-sm">
-                  <button className="efx-button efx-button-primary" onClick={handlePurchase} disabled={isPurchasing}>
+                  <button className="efx-button efx-button-primary" onClick={handlePurchase} disabled={isPurchasing} style={{ padding: '16px', fontSize: '1.05rem' }}>
                     {isPurchasing ? 'Processing...' : 'Purchase Section (One-Time)'}
                   </button>
-                  <Link to="/app/pricing" className="efx-button efx-button-secondary" style={{ textDecoration: 'none', textAlign: 'center' }}>
+                  <Link to="/app/pricing" className="efx-button efx-button-secondary" style={{ textDecoration: 'none', textAlign: 'center', padding: '14px' }}>
                     Subscribe to Claim Sections
                   </Link>
                 </div>
               )}
             </div>
-          </div>
-          
-          <div className="efx-solid-card">
-            <h3 className="efx-heading-md">Features</h3>
-            <ul style={{ paddingLeft: '20px', margin: 0 }} className="efx-text-body efx-text-subdued">
-              <li>100% Native Liquid Code</li>
-              <li>No external app dependencies</li>
-              <li>Installs directly into your theme</li>
-              <li>One-time purchase (keep forever)</li>
-            </ul>
+            
+            <div className="efx-mt-md">
+              <h3 className="efx-heading-md" style={{ fontSize: '1rem', color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Features</h3>
+              <ul style={{ paddingLeft: '20px', margin: '12px 0 0 0', display: 'flex', flexDirection: 'column', gap: '8px' }} className="efx-text-body efx-text-subdued">
+                <li>100% Native Liquid Code</li>
+                <li>No external app dependencies</li>
+                <li>Installs directly into your theme</li>
+                <li>One-time purchase (keep forever)</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
