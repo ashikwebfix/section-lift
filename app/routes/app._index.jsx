@@ -157,9 +157,9 @@ export default function Index() {
                 to={`/app/sections/${section.handle}`} 
                 key={section.id}
                 className={`efx-glass-card efx-glass-card-interactive efx-flex efx-flex-col ${section.is_exclusive ? 'efx-premium-card' : ''}`} 
-                style={{ padding: section.is_exclusive ? '2px' : 0, textDecoration: 'none', color: 'inherit', display: 'block' }}
+                style={{ padding: section.is_exclusive ? '2px' : 0, textDecoration: 'none', color: 'inherit', display: 'block', overflow: 'hidden' }}
               >
-                <div style={{ height: '200px', backgroundColor: '#e4e5e7', position: 'relative' }}>
+                <div style={{ height: '200px', backgroundColor: '#e4e5e7', position: 'relative', borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', overflow: 'hidden' }}>
                   {section.preview_image_url ? (
                     <img src={section.preview_image_url} alt={section.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
