@@ -6,7 +6,7 @@ import { authenticate, MONTHLY_PLAN } from "../shopify.server";
 import prisma from "../db.server";
 
 export const loader = async ({ request, params }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
   const { handle } = params;
 
   const section = await prisma.section.findUnique({
@@ -58,7 +58,7 @@ export const loader = async ({ request, params }) => {
 };
 
 export const action = async ({ request, params }) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session, admin, billing } = await authenticate.admin(request);
   const { handle } = params;
   const formData = await request.formData();
   const intent = formData.get("intent");
