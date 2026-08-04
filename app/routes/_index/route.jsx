@@ -5,8 +5,14 @@ import styles from "./styles.module.css";
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
 
-  if (url.searchParams.get("shop") || url.searchParams.get("id_token") || url.searchParams.get("appLoadId")) {
-    throw redirect(`/app?${url.searchParams.toString()}`);
+  if (
+    url.searchParams.get("shop") || 
+    url.searchParams.get("id_token") || 
+    url.searchParams.get("appLoadId") || 
+    request.headers.get("Sec-Fetch-Dest") === "iframe" ||
+    request.headers.get("Authorization")
+  ) {
+    throw redirect(`/app${url.search ? `?${url.searchParams.toString()}` : ''}`);
   }
 
   return { showForm: Boolean(login) };
