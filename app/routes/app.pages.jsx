@@ -372,7 +372,12 @@ export default function Pages() {
       ) : (
         <div className="efx-grid-3">
           {sections.map((section) => (
-            <div key={section.id} className={`efx-glass-card efx-glass-card-interactive efx-flex efx-flex-col ${section.is_exclusive ? 'efx-premium-card' : ''}`}>
+            <div 
+              key={section.id} 
+              className={`efx-glass-card efx-glass-card-interactive efx-flex efx-flex-col ${section.is_exclusive ? 'efx-premium-card' : ''}`}
+              onClick={() => setSelectedSection(section)}
+              style={{ cursor: 'pointer' }}
+            >
               <div style={{ height: '180px', marginBottom: '16px', backgroundColor: '#e4e5e7', position: 'relative', borderRadius: 'var(--efx-radius-md)', overflow: 'hidden' }}>
                 {section.preview_image_url ? (
                   <img src={section.preview_image_url} alt={section.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -426,13 +431,13 @@ export default function Pages() {
         >
           <div 
             className="efx-glass-card" 
-            style={{ maxWidth: '1000px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '0', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}
+            style={{ maxWidth: '1000px', width: '100%', maxHeight: '90vh', padding: '0', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}
             onClick={e => e.stopPropagation()}
           >
             {/* Left side: Image */}
-            <div style={{ flex: '1 1 400px', minHeight: '400px', position: 'relative', backgroundColor: 'var(--efx-color-border)' }}>
+            <div style={{ flex: '1 1 400px', minHeight: '400px', position: 'relative', backgroundColor: 'var(--efx-color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {selectedSection.preview_image_url ? (
-                <img src={selectedSection.preview_image_url} alt={selectedSection.name} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} />
+                <img src={selectedSection.preview_image_url} alt={selectedSection.name} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }} />
               ) : (
                 <div className="efx-preview-skeleton" style={{ width: '100%', height: '100%', position: 'absolute' }}>
                   <span className="efx-text-subdued">No Preview</span>
@@ -441,22 +446,24 @@ export default function Pages() {
             </div>
 
             {/* Right side: Content */}
-            <div style={{ flex: '1 1 400px', padding: '32px', display: 'flex', flexDirection: 'column' }}>
-              <div className="efx-flex efx-justify-between efx-items-start efx-mb-md">
-                <div>
-                  <span className="efx-badge">{selectedSection.category?.name}</span>
-                  <h2 className="efx-heading-xl efx-mt-sm" style={{margin:0}}>{selectedSection.name}</h2>
+            <div style={{ flex: '1 1 400px', padding: '0', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div style={{ padding: '32px', flexGrow: 1 }}>
+                <div className="efx-flex efx-justify-between efx-items-start efx-mb-md">
+                  <div>
+                    <span className="efx-badge">{selectedSection.category?.name}</span>
+                    <h2 className="efx-heading-xl efx-mt-sm" style={{margin:0}}>{selectedSection.name}</h2>
+                  </div>
+                  <button className="efx-button" onClick={handleCloseModal}>Close</button>
                 </div>
-                <button className="efx-button" onClick={handleCloseModal}>Close</button>
-              </div>
 
-              <p className="efx-text-body efx-mb-lg" style={{ fontSize: '1.1rem', flexGrow: 1 }}>
-                {selectedSection.full_description || selectedSection.short_description}
-              </p>
+                <p className="efx-text-body efx-mb-lg" style={{ fontSize: '1.1rem' }}>
+                  {selectedSection.full_description || selectedSection.short_description}
+                </p>
+              </div>
               
-              <div className="efx-solid-card efx-flex efx-flex-col efx-gap-md" style={{ padding: '24px', marginTop: 'auto' }}>
+              <div className="efx-solid-card efx-flex efx-flex-col efx-gap-md" style={{ padding: '24px', margin: '0 32px 32px 32px', position: 'sticky', bottom: 0, zIndex: 10, flexShrink: 0, boxShadow: '0 -10px 20px rgba(0,0,0,0.05)' }}>
                {fetcher.data?.error && (
-                 <div style={{ padding: '12px', backgroundColor: 'var(--efx-color-error)', color: '#fff', borderRadius: '4px' }}>
+                 <div style={{ padding: '12px', backgroundColor: 'var(--efx-color-error)', color: '#000', borderRadius: '4px' }}>
                    {fetcher.data.error}
                  </div>
                )}

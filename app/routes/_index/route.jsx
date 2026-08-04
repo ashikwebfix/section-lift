@@ -5,7 +5,7 @@ import styles from "./styles.module.css";
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
 
-  if (url.searchParams.get("shop")) {
+  if (url.searchParams.get("shop") || url.searchParams.get("id_token") || url.searchParams.get("appLoadId")) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
