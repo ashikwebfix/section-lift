@@ -1,4 +1,4 @@
-import { authenticate } from "../shopify.server";
+
 import { verifyHmac } from "../hmac-verify.server";
 
 export const loader = async () => {
