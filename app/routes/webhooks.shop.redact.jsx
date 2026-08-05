@@ -2,13 +2,13 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
 export const loader = async () => {
-  throw new Response("Method not allowed", { status: 405 });
+  return new Response("Method not allowed", { status: 405 });
 };
 
 export const action = async ({ request }) => {
-  const { shop, topic } = await authenticate.webhook(request);
-
   try {
+    const { shop, topic } = await authenticate.webhook(request);
+
     console.log(`Received ${topic} webhook for ${shop}`);
 
     await db.$transaction([
@@ -18,9 +18,13 @@ export const action = async ({ request }) => {
       db.shop.deleteMany({ where: { shop_domain: shop } }),
     ]);
 
-    return new Response();
-  } catch (err) {
-    console.error("Webhook processing error:", err);
+    return new Response(null, { status: 200 });
+  } catch (error) {
+    // If HMAC verification fails, authenticate.webhook throws a Response
+    if (error instanceof Response) {
+      return error;
+    }
+    console.error("Webhook error (shop/redact):", error);
     return new Response("Internal Server Error", { status: 500 });
   }
 };

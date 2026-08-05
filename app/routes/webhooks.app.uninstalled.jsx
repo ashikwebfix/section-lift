@@ -2,7 +2,7 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
 export const loader = async () => {
-  throw new Response("Method not allowed", { status: 405 });
+  return new Response("Method not allowed", { status: 405 });
 };
 
 export const action = async ({ request }) => {
@@ -18,16 +18,17 @@ export const action = async ({ request }) => {
       where: { shop_domain: shop },
       data: {
         status: "UNINSTALLED",
-        uninstalled_at: new Date()
-      }
+        uninstalled_at: new Date(),
+      },
     });
 
-    return new Response();
-  } catch (err) {
-    if (err instanceof Response || (err && typeof err.status === 'number')) {
-      return new Response(null, { status: 401 });
+    return new Response(null, { status: 200 });
+  } catch (error) {
+    // If HMAC verification fails, authenticate.webhook throws a Response
+    if (error instanceof Response) {
+      return error;
     }
-    console.error("Webhook processing error:", err);
+    console.error("Webhook error (app/uninstalled):", error);
     return new Response("Internal Server Error", { status: 500 });
   }
 };
