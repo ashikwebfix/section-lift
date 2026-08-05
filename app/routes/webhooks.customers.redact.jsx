@@ -8,18 +8,9 @@ export const loader = async () => {
 export const action = async ({ request }) => {
   const isValidHmac = await verifyHmac(request);
   if (!isValidHmac) {
-    return new Response(null, { status: 401 });
+    return new Response("Unauthorized", { status: 401 });
   }
 
-  try {
-    const { shop, topic, payload } = await authenticate.webhook(request);
-    console.log(`Received ${topic} webhook for ${shop}`);
-    return new Response();
-  } catch (err) {
-    if (err instanceof Response || (err && typeof err.status === 'number')) {
-      return new Response(null, { status: 401 });
-    }
-    console.error("Webhook processing error:", err);
-    return new Response("Internal Server Error", { status: 500 });
-  }
+  console.log("Received customers/redact webhook");
+  return new Response("OK", { status: 200 });
 };
