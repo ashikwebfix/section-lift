@@ -35,7 +35,7 @@ export const loader = async ({ request }) => {
   }
 
   if (tagParam) {
-    whereClause.tag = tagParam;
+    whereClause.tag = { contains: tagParam };
   }
 
   const [sections, categories, allSectionsForTags] = await Promise.all([
@@ -53,7 +53,7 @@ export const loader = async ({ request }) => {
     })
   ]);
 
-  const allTags = [...new Set(allSectionsForTags.map(s => s.tag).filter(Boolean))];
+  const allTags = [...new Set(allSectionsForTags.flatMap(s => s.tag ? s.tag.split(',').map(t => t.trim()) : []).filter(Boolean))];
 
   // Fetch Entitlements
   const entitlements = await prisma.entitlement.findMany({
