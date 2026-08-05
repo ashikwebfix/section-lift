@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "e01f29687bb96f5f6ce802cb04ffdd00"
+client_id = "da7702675a16c59b0c25fa52eb5a3fe5"
 name = "Section Lift"
 application_url = "https://section-lift.ecomfixr.com"
 embedded = true

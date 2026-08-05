@@ -1,16 +1,17 @@
-
-import { verifyHmac } from "../hmac-verify.server";
+import { authenticate } from "../shopify.server";
 
 export const loader = async () => {
   throw new Response("Method not allowed", { status: 405 });
 };
 
 export const action = async ({ request }) => {
-  const isValidHmac = await verifyHmac(request);
-  if (!isValidHmac) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const { payload, shop, topic } = await authenticate.webhook(request);
 
-  console.log("Received customers/data_request webhook");
-  return new Response("OK", { status: 200 });
+  // The app doesn't store customer records, so there is no customer data to
+  // export. Authentication above verifies the raw body and HMAC signature.
+  console.log(`Received ${topic} webhook for ${shop}`, {
+    customerId: payload.customer?.id,
+  });
+
+  return new Response();
 };

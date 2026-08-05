@@ -1,5 +1,4 @@
-
-import { verifyHmac } from "../hmac-verify.server";
+import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
 export const loader = async () => {
@@ -7,21 +6,19 @@ export const loader = async () => {
 };
 
 export const action = async ({ request }) => {
-  const clonedReq = request.clone();
-  const isValidHmac = await verifyHmac(request);
-  if (!isValidHmac) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const { shop, topic } = await authenticate.webhook(request);
 
   try {
-    const payload = await clonedReq.json();
-    const shop = payload.shop_domain;
-    if (shop) {
-      console.log(`Received shop/redact webhook for ${shop}`);
-      await db.session.deleteMany({ where: { shop } });
-      await db.shop.deleteMany({ where: { shop_domain: shop } });
-    }
-    return new Response("OK", { status: 200 });
+    console.log(`Received ${topic} webhook for ${shop}`);
+
+    await db.$transaction([
+      db.session.deleteMany({ where: { shop } }),
+      db.entitlement.deleteMany({ where: { shop_domain: shop } }),
+      db.installation.deleteMany({ where: { shop_domain: shop } }),
+      db.shop.deleteMany({ where: { shop_domain: shop } }),
+    ]);
+
+    return new Response();
   } catch (err) {
     console.error("Webhook processing error:", err);
     return new Response("Internal Server Error", { status: 500 });

@@ -1,16 +1,17 @@
-
-import { verifyHmac } from "../hmac-verify.server";
+import { authenticate } from "../shopify.server";
 
 export const loader = async () => {
   throw new Response("Method not allowed", { status: 405 });
 };
 
 export const action = async ({ request }) => {
-  const isValidHmac = await verifyHmac(request);
-  if (!isValidHmac) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const { payload, shop, topic } = await authenticate.webhook(request);
 
-  console.log("Received customers/redact webhook");
-  return new Response("OK", { status: 200 });
+  // The app doesn't persist customer records. A successful authenticated
+  // response acknowledges that there is no customer data left to redact.
+  console.log(`Received ${topic} webhook for ${shop}`, {
+    customerId: payload.customer?.id,
+  });
+
+  return new Response();
 };

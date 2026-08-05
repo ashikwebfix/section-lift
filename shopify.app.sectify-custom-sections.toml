@@ -17,10 +17,17 @@ redirect_urls = ["https://section-lift.ecomfixr.com/api/auth"]
 [webhooks]
 api_version = "2025-10"
 
-[webhooks.privacy_compliance]
-customer_deletion_url = "https://section-lift.ecomfixr.com/webhooks/customers/redact"
-customer_data_request_url = "https://section-lift.ecomfixr.com/webhooks/customers/data_request"
-shop_deletion_url = "https://section-lift.ecomfixr.com/webhooks/shop/redact"
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request" ]
+  uri = "/webhooks/customers/data_request"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/redact" ]
+  uri = "/webhooks/customers/redact"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "shop/redact" ]
+  uri = "/webhooks/shop/redact"
 
 [build]
 automatically_update_urls_on_dev = true

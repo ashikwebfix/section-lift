@@ -1,5 +1,4 @@
 import { authenticate } from "../shopify.server";
-import { verifyHmac } from "../hmac-verify.server";
 import db from "../db.server";
 
 export const loader = async () => {
@@ -7,11 +6,6 @@ export const loader = async () => {
 };
 
 export const action = async ({ request }) => {
-  const isValidHmac = await verifyHmac(request);
-  if (!isValidHmac) {
-    return new Response(null, { status: 401 });
-  }
-
   try {
     const { payload, session, topic, shop } = await authenticate.webhook(request);
     console.log(`Received ${topic} webhook for ${shop}`);
