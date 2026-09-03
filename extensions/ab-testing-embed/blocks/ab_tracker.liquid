@@ -1,0 +1,162 @@
+{% schema %}
+{
+  "name": "A/B Tracker",
+  "target": "head",
+  "settings": []
+}
+{% endschema %}
+
+<style>
+  /* Anti-flicker: hide the body briefly while tests load */
+  html.sectify-flicker-guard body {
+    opacity: 0 !important;
+  }
+  
+  /* Hide AB Test variant sections by default to prevent FOOC */
+  [id*="__ab_variant_"]:not(.sectify-visible) {
+    display: none !important;
+  }
+</style>
+
+<script>
+  (function() {
+    // Engage Anti-Flicker guard (max 1000ms)
+    document.documentElement.classList.add('sectify-flicker-guard');
+    const fallbackTimeout = setTimeout(() => {
+      document.documentElement.classList.remove('sectify-flicker-guard');
+    }, 1000);
+
+    console.log("SECTION LIFT A/B Tracker loaded.");
+    const shopDomain = '{{ shop.domain }}';
+    const pageUrl = window.location.pathname;
+    
+    // 1. Identify or Create Visitor
+    let visitorId = localStorage.getItem('_sectify_ab_visitor_id');
+    if (!visitorId) {
+      visitorId = 'v_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('_sectify_ab_visitor_id', visitorId);
+    }
+
+    // 2. Fetch Active Tests (Assuming App Proxy is /a/section-lift)
+    // We append the visitorId and pageUrl so the backend can decide the split
+    fetch(`/a/section-lift/api/ab-tests/active?shop=${shopDomain}&url=${encodeURIComponent(pageUrl)}&vid=${visitorId}`)
+      .then(res => res.json())
+      .then(data => {
+        const clearFlickerGuard = () => {
+          if (document.readyState !== 'loading') {
+            document.documentElement.classList.remove('sectify-flicker-guard');
+          } else {
+            document.addEventListener('DOMContentLoaded', () => setTimeout(() => document.documentElement.classList.remove('sectify-flicker-guard'), 50));
+          }
+        };
+
+        if (!data || !data.tests || data.tests.length === 0) {
+          clearFlickerGuard();
+          return;
+        }
+        
+        // 3. Apply Test Logic
+        const applyTest = (test) => {
+          let originalEl;
+          if (test.original_id.startsWith('#') || test.original_id.startsWith('.')) {
+            originalEl = document.querySelector(test.original_id);
+          } else {
+            originalEl = document.querySelector(`[id$="__${test.original_id}"]`) || document.querySelector(`#shopify-section-${test.original_id}`);
+          }
+          
+          let variantEl;
+          if (test.variant_id.startsWith('#') || test.variant_id.startsWith('.')) {
+            variantEl = document.querySelector(test.variant_id);
+          } else {
+            variantEl = document.querySelector(`[id$="__${test.variant_id}"]`) || document.querySelector(`#shopify-section-${test.variant_id}`);
+          }
+          
+          console.log("SECTION LIFT A/B Test:", test.name, "Assigned Variant:", test.assigned_variant);
+          console.log("Original Element Selector:", test.original_id, "Found:", originalEl);
+          console.log("Variant Element Selector:", test.variant_id, "Found:", variantEl);
+
+          if (!originalEl || !variantEl) {
+             console.warn("SECTION LIFT: Missing elements, cannot apply AB test.");
+             return; 
+          }
+          
+          if (test.assigned_variant === 'A') {
+            variantEl.classList.remove('sectify-visible');
+            variantEl.style.display = 'none';
+            originalEl.style.display = ''; // Ensure visible
+          } else {
+            originalEl.style.display = 'none';
+            variantEl.classList.add('sectify-visible');
+            variantEl.style.display = ''; // Ensure visible
+          }
+        };
+
+        data.tests.forEach(test => {
+           if (document.readyState === 'loading') {
+             document.addEventListener('DOMContentLoaded', () => applyTest(test));
+           } else {
+             applyTest(test);
+           }
+
+          // Track Impression
+          fetch(`/a/section-lift/api/ab-tests/track`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              test_id: test.id,
+              shop_domain: shopDomain,
+              visitor_id: visitorId,
+              variant: test.assigned_variant,
+              event_type: 'VIEW'
+            })
+          });
+          
+          // Store assignment in cart attributes for purchase tracking
+          fetch('/cart/update.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              attributes: {
+                [`_ab_test_${test.id}`]: test.assigned_variant
+              }
+            })
+          });
+
+          // Store for click tracking
+          const activeTests = JSON.parse(sessionStorage.getItem('_sectify_active_tests') || '[]');
+          activeTests.push({ id: test.id, variant: test.assigned_variant });
+          sessionStorage.setItem('_sectify_active_tests', JSON.stringify(activeTests));
+        });
+        
+        clearFlickerGuard();
+      })
+      .catch(err => {
+        console.error("Error loading AB tests:", err);
+        document.documentElement.classList.remove('sectify-flicker-guard');
+      });
+
+    // 4. Track Clicks (e.g. Add to cart)
+    document.addEventListener('click', function(e) {
+      // Very basic click tracking: check if it's an add to cart button
+      if (e.target.closest('form[action="/cart/add"]') || e.target.closest('[name="add"]')) {
+         // Assuming we already loaded tests, we can fire a CLICK event
+         // For a production app, we'd store the active tests in a variable
+         const activeTestIds = JSON.parse(sessionStorage.getItem('_sectify_active_tests') || '[]');
+         activeTestIds.forEach(testInfo => {
+           fetch(`/a/section-lift/api/ab-tests/track`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                test_id: testInfo.id,
+                shop_domain: shopDomain,
+                visitor_id: visitorId,
+                variant: testInfo.variant,
+                event_type: 'CLICK'
+              })
+            });
+         });
+      }
+    });
+
+  })();
+</script>

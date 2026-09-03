@@ -132,3 +132,30 @@ model Installation {
   section            Section        @relation(fields: [section_id], references: [id])
   section_version    SectionVersion? @relation(fields: [section_version_id], references: [id])
 }
+
+model ABTest {
+  id               String          @id @default(uuid())
+  shop_domain      String
+  name             String
+  status           String          @default("DRAFT") // DRAFT, ACTIVE, COMPLETED
+  page_url         String?         // URL where the test runs, e.g., "/" or "/products/some-product"
+  original_id      String          // HTML ID/Class of original section (e.g. #shopify-section-123)
+  variant_id       String          // HTML ID/Class of variant section (e.g. #shopify-section-456)
+  traffic_split    Int             @default(50) // Percentage to Variant
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+
+  events           ABTestEvent[]
+}
+
+model ABTestEvent {
+  id             String    @id @default(uuid())
+  test_id        String
+  shop_domain    String
+  visitor_id     String    // Cookie ID
+  variant        String    // "A" (Original) or "B" (Variant)
+  event_type     String    // "VIEW", "CLICK", "ADD_TO_CART", "PURCHASE"
+  created_at     DateTime  @default(now())
+
+  test           ABTest    @relation(fields: [test_id], references: [id], onDelete: Cascade)
+}

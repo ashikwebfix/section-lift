@@ -17,6 +17,10 @@ api_version = "2026-10"
   topics = [ "app/uninstalled" ]
 
   [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/create"
+  topics = [ "orders/create" ]
+
+  [[webhooks.subscriptions]]
   compliance_topics = [ "customers/data_request" ]
   uri = "/webhooks/customers/data_request"
 
@@ -30,10 +34,15 @@ api_version = "2026-10"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_themes,write_metaobject_definitions,write_metaobjects,write_products,write_themes"
+scopes = "read_themes,write_metaobject_definitions,write_metaobjects,write_products,write_themes,read_orders"
 
 [auth]
 redirect_urls = [ "https://section-lift.ecomfixr.com/api/auth" ]
+
+[app_proxy]
+url = "https://section-lift.ecomfixr.com/"
+subpath = "section-lift"
+prefix = "a"
 
 [build]
 automatically_update_urls_on_dev = true

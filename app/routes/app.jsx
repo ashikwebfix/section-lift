@@ -21,6 +21,7 @@ export default function App() {
         <s-link href="/app/pages">Pages</s-link>
         <s-link href="/app/my-sections">My Sections</s-link>
         <s-link href="/app/history">Manage Installations</s-link>
+        <s-link href="/app/ab-testing">A/B Testing</s-link>
         <s-link href="/app/pricing">Pricing</s-link>
         <s-link href="/app/support">Support</s-link>
       </s-app-nav>
