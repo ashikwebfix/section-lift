@@ -11,150 +11,455 @@
   html.sectify-flicker-guard body {
     opacity: 0 !important;
   }
-  
-  /* Hide AB Test variant sections by default to prevent FOOC */
-  [id*="__ab_variant_"]:not(.sectify-visible) {
+
+  /* Hide sections that are marked as AB variant sections until JS assigns the correct one */
+  .sectify-ab-hide {
     display: none !important;
   }
 </style>
 
 <script>
   (function() {
-    // Engage Anti-Flicker guard (max 1000ms)
+    var shopDomain = '{{ shop.domain }}';
+    var pageUrl = window.location.pathname;
+    var appProxyBase = '/a/section-lift';
+    var trackUrl = appProxyBase + '/api/ab-tests/track';
+    var activeTestsUrl = appProxyBase + '/api/ab-tests/active';
+    var currentTemplate = '{{ template.name }}{% if template.suffix %}.{{ template.suffix }}{% endif %}';
+
+    // ─────────────────────────────────────────────────────────────────
+    // DYNAMIC REVENUE FILTERING
+    // Automatically capture product handle, id, and title so we can filter revenue 
+    // to just this product during checkout, regardless of which template was used.
+    // ─────────────────────────────────────────────────────────────────
+    {% if request.page_type == 'product' %}
+      var currentProductHandle = '{{ product.handle | escape }}';
+      var currentProductId = '{{ product.id }}';
+      var currentProductTitle = '{{ product.title | escape }}';
+    {% else %}
+      var currentProductHandle = null;
+      var currentProductId = null;
+      var currentProductTitle = null;
+    {% endif %}
+
+    // ─────────────────────────────────────────────────────────────────
+    // ANTI-FLICKER GUARD
+    // ─────────────────────────────────────────────────────────────────
     document.documentElement.classList.add('sectify-flicker-guard');
-    const fallbackTimeout = setTimeout(() => {
+    setTimeout(function() {
       document.documentElement.classList.remove('sectify-flicker-guard');
     }, 1000);
 
-    console.log("SECTION LIFT A/B Tracker loaded.");
-    const shopDomain = '{{ shop.domain }}';
-    const pageUrl = window.location.pathname;
+    console.log('[SectionLift] A/B Tracker loaded. Page:', pageUrl);
     
-    // 1. Identify or Create Visitor
-    let visitorId = localStorage.getItem('_sectify_ab_visitor_id');
+    // ─────────────────────────────────────────────────────────────────
+    // VISITOR IDENTITY
+    // ─────────────────────────────────────────────────────────────────
+    var visitorId = localStorage.getItem('_sectify_ab_visitor_id');
     if (!visitorId) {
-      visitorId = 'v_' + Math.random().toString(36).substr(2, 9);
+      visitorId = 'v_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
       localStorage.setItem('_sectify_ab_visitor_id', visitorId);
+      sessionStorage.setItem('_sectify_is_new_session', 'true');
+    }
+    var visitorType = sessionStorage.getItem('_sectify_is_new_session') === 'true' ? 'NEW' : 'RETURNING';
+    
+    // UTM & Source tracking
+    var urlParams = new URLSearchParams(window.location.search);
+    var utmCampaign = urlParams.get('utm_campaign') || '';
+    if (utmCampaign) sessionStorage.setItem('_sectify_utm', utmCampaign);
+    else utmCampaign = sessionStorage.getItem('_sectify_utm') || '';
+    
+    var visitorSource = sessionStorage.getItem('_sectify_visitor_source');
+    if (!visitorSource) {
+      var utmMedium = (urlParams.get('utm_medium') || '').toLowerCase();
+      var utmSource = (urlParams.get('utm_source') || '').toLowerCase();
+      var referrer = document.referrer || '';
+      if (utmMedium === 'cpc' || utmMedium === 'cpm' || utmMedium === 'paid') visitorSource = 'Paid';
+      else if (utmSource === 'facebook' || utmSource === 'instagram' || referrer.includes('facebook.com') || referrer.includes('instagram.com')) visitorSource = 'Social';
+      else if (referrer.includes('google.com') || referrer.includes('bing.com')) visitorSource = 'Organic';
+      else if (referrer && !referrer.includes(window.location.hostname)) visitorSource = 'Referral';
+      else visitorSource = 'Direct';
+      sessionStorage.setItem('_sectify_visitor_source', visitorSource);
     }
 
-    // 2. Fetch Active Tests (Assuming App Proxy is /a/section-lift)
-    // We append the visitorId and pageUrl so the backend can decide the split
-    fetch(`/a/section-lift/api/ab-tests/active?shop=${shopDomain}&url=${encodeURIComponent(pageUrl)}&vid=${visitorId}`)
-      .then(res => res.json())
-      .then(data => {
-        const clearFlickerGuard = () => {
-          if (document.readyState !== 'loading') {
-            document.documentElement.classList.remove('sectify-flicker-guard');
-          } else {
-            document.addEventListener('DOMContentLoaded', () => setTimeout(() => document.documentElement.classList.remove('sectify-flicker-guard'), 50));
-          }
-        };
+    var deviceType = sessionStorage.getItem('_sectify_device_type');
+    if (!deviceType) {
+      var ua = navigator.userAgent;
+      if (/iPad|iPhone|iPod/.test(ua)) deviceType = 'IOS';
+      else if (/android/i.test(ua)) deviceType = 'ANDROID';
+      else if (/Mobile|webOS|BlackBerry/i.test(ua)) deviceType = 'MOBILE';
+      else deviceType = 'DESKTOP';
+      sessionStorage.setItem('_sectify_device_type', deviceType);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // HELPER: Send tracking event
+    // ─────────────────────────────────────────────────────────────────
+    function trackEvent(payload) {
+      return fetch(trackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(function(e) { console.error('[SectionLift] Track error:', e); });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // HELPER: Get/save active test assignments from localStorage
+    // These persist through checkout redirects.
+    // ─────────────────────────────────────────────────────────────────
+    function getStoredTests() {
+      try { return JSON.parse(localStorage.getItem('_sectify_active_tests') || '[]'); } catch(e) { return []; }
+    }
+    function saveTests(tests) {
+      localStorage.setItem('_sectify_active_tests', JSON.stringify(tests));
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // HELPER: Push data to Web Pixel via Shopify.analytics.publish
+    // The pixel can ONLY receive data this way. We retry until available.
+    // ─────────────────────────────────────────────────────────────────
+    function publishToPixel(testData) {
+      var maxRetries = 20;
+      var retries = 0;
+      function tryPublish() {
+        if (window.Shopify && window.Shopify.analytics && typeof window.Shopify.analytics.publish === 'function') {
+          try {
+            window.Shopify.analytics.publish('custom_sectify_ab_test', testData);
+            console.log('[SectionLift] Published to Web Pixel:', testData.test_id);
+          } catch(e) { console.warn('[SectionLift] Pixel publish error:', e); }
+        } else if (retries < maxRetries) {
+          retries++;
+          setTimeout(tryPublish, 300);
+        }
+      }
+      tryPublish();
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // FETCH ACTIVE TESTS & APPLY
+    // ─────────────────────────────────────────────────────────────────
+    var fetchUrl = activeTestsUrl
+      + '?shop=' + shopDomain
+      + '&url=' + encodeURIComponent(pageUrl)
+      + '&template=' + encodeURIComponent(currentTemplate)
+      + '&vid=' + visitorId
+      + '&utm_campaign=' + encodeURIComponent(utmCampaign)
+      + '&device_type=' + deviceType
+      + '&visitor_type=' + visitorType;
+        
+    fetch(fetchUrl)
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        // Anti-flicker guard will be removed inside applyTest() after sections are shown/hidden.
+        // Only remove it here if there are no tests to apply (guard below).
+
+        // Read the direct app server track URL returned by the API.
+        var pixelTrackUrl = (data && data.pixel_track_url) || (function() { try { return localStorage.getItem('_sectify_pixel_track_url'); } catch(e) { return null; } })() || (window.location.origin + '/a/section-lift/api/ab-tests/track');
+        if (data && data.pixel_track_url) {
+          try { localStorage.setItem('_sectify_pixel_track_url', data.pixel_track_url); } catch(e) {}
+        }
+        console.log('[SectionLift] Pixel track URL:', pixelTrackUrl);
 
         if (!data || !data.tests || data.tests.length === 0) {
-          clearFlickerGuard();
+          console.log('[SectionLift] No active tests for this page. Re-publishing any stored assignments to pixel for checkout tracking.');
+          // Remove anti-flicker guard — no tests to apply on this page
+          document.documentElement.classList.remove('sectify-flicker-guard');
+          // CRITICAL: Re-publish stored tests to pixel even on non-test pages (e.g. cart, checkout)
+          // so checkout_completed in the pixel can still fire PURCHASE events.
+          var existingTests = getStoredTests();
+          var cachedTrackUrl = pixelTrackUrl;
+          if (existingTests.length > 0) {
+            [500, 2000, 4000].forEach(function(delay) {
+              setTimeout(function() {
+                existingTests.forEach(function(t) {
+                  publishToPixel({ 
+                    test_id: t.id, 
+                    variant: t.variant, 
+                    visitor_id: t.visitor_id, 
+                    visitor_source: t.visitor_source, 
+                    shop_domain: t.shop_domain, 
+                    track_url: t.track_url || cachedTrackUrl, 
+                    product_handle: t.product_handle || null,
+                    product_id: t.product_id || null,
+                    product_title: t.product_title || null
+                  });
+                });
+              }, delay);
+            });
+          }
           return;
         }
-        
-        // 3. Apply Test Logic
-        const applyTest = (test) => {
-          let originalEl;
-          if (test.original_id.startsWith('#') || test.original_id.startsWith('.')) {
-            originalEl = document.querySelector(test.original_id);
-          } else {
-            originalEl = document.querySelector(`[id$="__${test.original_id}"]`) || document.querySelector(`#shopify-section-${test.original_id}`);
-          }
-          
-          let variantEl;
-          if (test.variant_id.startsWith('#') || test.variant_id.startsWith('.')) {
-            variantEl = document.querySelector(test.variant_id);
-          } else {
-            variantEl = document.querySelector(`[id$="__${test.variant_id}"]`) || document.querySelector(`#shopify-section-${test.variant_id}`);
-          }
-          
-          console.log("SECTION LIFT A/B Test:", test.name, "Assigned Variant:", test.assigned_variant);
-          console.log("Original Element Selector:", test.original_id, "Found:", originalEl);
-          console.log("Variant Element Selector:", test.variant_id, "Found:", variantEl);
 
-          if (!originalEl || !variantEl) {
-             console.warn("SECTION LIFT: Missing elements, cannot apply AB test.");
-             return; 
+        var storedTests = getStoredTests();
+
+        data.tests.forEach(function(test) {
+          // Dynamically assign the current product details so the pixel/webhook filters revenue
+          test.product_handle = currentProductHandle;
+          test.product_id = currentProductId;
+          test.product_title = currentProductTitle;
+
+          // ── Apply visual variant ──
+          // getEl: robustly find a Shopify section element by its section ID
+          function getEl(id) {
+            if (!id) return null;
+            if (id.startsWith('#') || id.startsWith('.')) return document.querySelector(id);
+            
+            var el = document.getElementById('shopify-section-' + id);
+            if (el) return el;
+            
+            // Allow matching shopify-section wrappers that end with the ID
+            el = document.querySelector('[id$="' + id + '"]');
+            if (el && el.classList.contains('shopify-section')) return el;
+            if (el) return el;
+            
+            var sections = document.querySelectorAll('.shopify-section');
+            for (var i = 0; i < sections.length; i++) {
+              if (sections[i].id && sections[i].id.indexOf(id) !== -1) return sections[i];
+            }
+            
+            // Extreme fallback: any element containing the id anywhere
+            var all = document.querySelectorAll('[id*="' + id + '"]');
+            for (var i = 0; i < all.length; i++) {
+               if (all[i].tagName === 'SECTION' || all[i].classList.contains('shopify-section')) {
+                  return all[i];
+               }
+            }
+            if (all.length > 0) return all[0];
+            
+            return null;
           }
-          
-          if (test.assigned_variant === 'A') {
-            variantEl.classList.remove('sectify-visible');
-            variantEl.style.display = 'none';
-            originalEl.style.display = ''; // Ensure visible
+
+          // Use style.setProperty with 'important' so we always win over theme CSS
+          function hideEl(el) {
+            if (el) {
+              el.classList.remove('sectify-visible');
+              el.classList.add('sectify-ab-hide');
+              el.style.setProperty('display', 'none', 'important');
+            }
+          }
+          function showEl(el) {
+            if (el) {
+              el.classList.add('sectify-visible');
+              el.classList.remove('sectify-ab-hide');
+              el.style.removeProperty('display');
+            }
+          }
+
+          function applyTest() {
+            var orig = getEl(test.original_id);
+            var vB   = getEl(test.variant_id);
+            var vC   = getEl(test.variant_c_id);
+            var vD   = getEl(test.variant_d_id);
+
+            var activeEl = null;
+
+            if (!orig) {
+              console.warn('[SectionLift] Original section not found for test:', test.name, '| original_id:', test.original_id);
+              // We do not return early here. Even if original is not found, we must hide the variants if assigned A,
+              // or show the variant if assigned B, to prevent BOTH from showing!
+            }
+
+            console.log('[SectionLift] Applying test:', test.name, '→ Variant', test.assigned_variant,
+              '| orig:', test.original_id, '| varB:', test.variant_id);
+
+            if (test.assigned_variant === 'A') {
+              hideEl(vB); hideEl(vC); hideEl(vD);
+              showEl(orig);
+              activeEl = orig;
+            } else {
+              hideEl(orig);
+              hideEl(vB); hideEl(vC); hideEl(vD);
+              if (test.assigned_variant === 'B' && vB) { showEl(vB); activeEl = vB; }
+              else if (test.assigned_variant === 'C' && vC) { showEl(vC); activeEl = vC; }
+              else if (test.assigned_variant === 'D' && vD) { showEl(vD); activeEl = vD; }
+              else {
+                // Assigned variant element not found — fall back to original
+                console.warn('[SectionLift] Variant element not found, falling back to A:', test.assigned_variant);
+                showEl(orig);
+                activeEl = orig;
+              }
+            }
+            // Remove anti-flicker AFTER variant is applied
+            document.documentElement.classList.remove('sectify-flicker-guard');
+
+            // ── Track Interactions inside the assigned section ──
+            if (activeEl && !activeEl.dataset.sectifyListenerAttached) {
+              activeEl.dataset.sectifyListenerAttached = 'true';
+              activeEl.addEventListener('click', function(e) {
+                if (!activeEl.dataset.sectifyClicked) {
+                  activeEl.dataset.sectifyClicked = 'true';
+                  trackEvent({
+                    test_id: test.id, shop_domain: shopDomain, visitor_id: visitorId,
+                    variant: test.assigned_variant, event_type: 'CLICK', visitor_source: visitorSource
+                  });
+                }
+              });
+            }
+          }
+
+          // Pre-hide all variant sections immediately (before DOM content loaded) to avoid FOOC
+          // We do this inline so it happens synchronously at script parse time
+          ;(function preFadeVariants() {
+            var ids = [test.variant_id, test.variant_c_id, test.variant_d_id].filter(Boolean);
+            ids.forEach(function(id) {
+              var el = getEl(id);
+              if (el) { el.classList.add('sectify-ab-hide'); el.style.setProperty('display', 'none', 'important'); }
+            });
+          })();
+
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', applyTest);
           } else {
-            originalEl.style.display = 'none';
-            variantEl.classList.add('sectify-visible');
-            variantEl.style.display = ''; // Ensure visible
+            applyTest();
           }
-        };
 
-        data.tests.forEach(test => {
-           if (document.readyState === 'loading') {
-             document.addEventListener('DOMContentLoaded', () => applyTest(test));
-           } else {
-             applyTest(test);
-           }
-
-          // Track Impression
-          fetch(`/a/section-lift/api/ab-tests/track`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              test_id: test.id,
-              shop_domain: shopDomain,
-              visitor_id: visitorId,
-              variant: test.assigned_variant,
-              event_type: 'VIEW'
-            })
+          // ── Track VIEW ──
+          trackEvent({
+            test_id: test.id, shop_domain: shopDomain, visitor_id: visitorId,
+            variant: test.assigned_variant, event_type: 'VIEW', visitor_source: visitorSource
           });
-          
-          // Store assignment in cart attributes for purchase tracking
+
+          // ── Save assignment to localStorage (survives checkout redirect) ──
+          storedTests = storedTests.filter(function(t) { return t.id !== test.id; });
+          storedTests.push({
+            id: test.id,
+            variant: test.assigned_variant,
+            visitor_id: visitorId,
+            visitor_source: visitorSource,
+            shop_domain: shopDomain,
+            product_handle: test.product_handle || null,
+            product_id: test.product_id || null,
+            product_title: test.product_title || null,
+            track_url: pixelTrackUrl
+          });
+
+          // ── Update cart note_attributes ──
+          // These become checkout.customAttributes in the pixel's checkout_completed event.
+          // This is the CRITICAL fallback when pixel localStorage is empty.
+          var cartAttr = {};
+          cartAttr['_ab_test_' + test.id] = test.assigned_variant;
+          // Also store identity fields so pixel can reconstruct event from customAttributes alone.
+          cartAttr['_sectify_vid']       = visitorId;
+          cartAttr['_sectify_shop']      = shopDomain;
+          cartAttr['_sectify_src']       = visitorSource || 'Direct';
+          cartAttr['_sectify_track_url'] = pixelTrackUrl;
+          // Per-test product details — used by both the pixel fallback path and the orders/create webhook
+          // to filter revenue to only this product's line items.
+          if (test.product_handle) {
+            cartAttr['_sectify_ph_' + test.id] = test.product_handle;
+          }
+          if (test.product_id) {
+            cartAttr['_sectify_pid_' + test.id] = test.product_id;
+          }
+          if (test.product_title) {
+            cartAttr['_sectify_pt_' + test.id] = test.product_title;
+          }
+
+          // Inject into any product / cart forms so Buy Now or native submit passes attributes
+          function injectFormAttributes() {
+            var forms = document.querySelectorAll('form[action*="/cart/add"], form[action*="/cart"]');
+            forms.forEach(function(form) {
+              Object.keys(cartAttr).forEach(function(k) {
+                var input = form.querySelector('input[name="attributes[' + k + ']"]');
+                if (!input) {
+                  input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = 'attributes[' + k + ']';
+                  form.appendChild(input);
+                }
+                input.value = cartAttr[k];
+              });
+            });
+          }
+          injectFormAttributes();
+          setTimeout(injectFormAttributes, 500);
+          setTimeout(injectFormAttributes, 1500);
+
           fetch('/cart/update.js', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              attributes: {
-                [`_ab_test_${test.id}`]: test.assigned_variant
-              }
-            })
-          });
+            body: JSON.stringify({ attributes: cartAttr })
+          }).catch(function(){});
 
-          // Store for click tracking
-          const activeTests = JSON.parse(sessionStorage.getItem('_sectify_active_tests') || '[]');
-          activeTests.push({ id: test.id, variant: test.assigned_variant });
-          sessionStorage.setItem('_sectify_active_tests', JSON.stringify(activeTests));
+          // ── Publish to Web Pixel sandbox ──
+          publishToPixel({
+            test_id: test.id,
+            variant: test.assigned_variant,
+            visitor_id: visitorId,
+            visitor_source: visitorSource,
+            shop_domain: shopDomain,
+            track_url: pixelTrackUrl,
+            product_handle: test.product_handle || null,
+            product_id: test.product_id || null,
+            product_title: test.product_title || null
+          });
         });
-        
-        clearFlickerGuard();
+
+        saveTests(storedTests);
+
+        // ── Re-publish ALL stored tests to pixel repeatedly to ensure the pixel
+        //    has data even if Shopify.analytics was slow to load on this page ──
+        [1000, 2000, 4000].forEach(function(delay) {
+          setTimeout(function() {
+            storedTests.forEach(function(t) {
+              publishToPixel({ 
+                test_id: t.id, 
+                variant: t.variant, 
+                visitor_id: t.visitor_id, 
+                visitor_source: t.visitor_source, 
+                shop_domain: t.shop_domain, 
+                track_url: t.track_url || pixelTrackUrl,
+                product_handle: t.product_handle || null,
+                product_id: t.product_id || null,
+                product_title: t.product_title || null
+              });
+            });
+          }, delay);
+        });
       })
-      .catch(err => {
-        console.error("Error loading AB tests:", err);
+      .catch(function(err) {
+        console.error('[SectionLift] Failed to load tests:', err);
         document.documentElement.classList.remove('sectify-flicker-guard');
       });
 
-    // 4. Track Clicks (e.g. Add to cart)
+    // ─────────────────────────────────────────────────────────────────
+    // CLICK (Add to Cart) AND GENERAL INTERACTION TRACKING
+    // ─────────────────────────────────────────────────────────────────
     document.addEventListener('click', function(e) {
-      // Very basic click tracking: check if it's an add to cart button
-      if (e.target.closest('form[action="/cart/add"]') || e.target.closest('[name="add"]')) {
-         // Assuming we already loaded tests, we can fire a CLICK event
-         // For a production app, we'd store the active tests in a variable
-         const activeTestIds = JSON.parse(sessionStorage.getItem('_sectify_active_tests') || '[]');
-         activeTestIds.forEach(testInfo => {
-           fetch(`/a/section-lift/api/ab-tests/track`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                test_id: testInfo.id,
-                shop_domain: shopDomain,
-                visitor_id: visitorId,
-                variant: testInfo.variant,
-                event_type: 'CLICK'
-              })
-            });
-         });
+      var isAddToCart = e.target.closest('form[action*="/cart/add"]') || 
+                        e.target.closest('[name="add"]') || 
+                        e.target.closest('[data-add-to-cart]') ||
+                        e.target.closest('.product-form__cart-submit') ||
+                        e.target.closest('.add-to-cart') ||
+                        e.target.closest('.btn--add-to-cart') ||
+                        e.target.closest('[data-shopify="payment-button"]') ||
+                        e.target.closest('.shopify-payment-button');
+
+      if (isAddToCart) {
+        var tests = getStoredTests();
+        tests.forEach(function(t) {
+          trackEvent({ test_id: t.id, shop_domain: shopDomain, visitor_id: visitorId, variant: t.variant, event_type: 'CLICK', visitor_source: visitorSource });
+        });
+
+        // Ensure cart attributes are sent when adding to cart
+        var addCartAttr = {};
+        tests.forEach(function(t) {
+          addCartAttr['_ab_test_' + t.id] = t.variant;
+          if (t.product_handle) addCartAttr['_sectify_ph_' + t.id] = t.product_handle;
+          if (t.product_id) addCartAttr['_sectify_pid_' + t.id] = t.product_id;
+          if (t.product_title) addCartAttr['_sectify_pt_' + t.id] = t.product_title;
+        });
+        addCartAttr['_sectify_vid']       = visitorId;
+        addCartAttr['_sectify_shop']      = shopDomain;
+        addCartAttr['_sectify_src']       = visitorSource || 'Direct';
+        addCartAttr['_sectify_track_url'] = localStorage.getItem('_sectify_pixel_track_url') || trackUrl;
+
+        fetch('/cart/update.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attributes: addCartAttr })
+        }).catch(function(){});
       }
     });
 

@@ -205,7 +205,7 @@ export default function SectionDetail() {
   const currentlyOwned = isOwned || (fetcher.data?.success && fetcher.data?.action === "claimed");
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-lg" style={{ padding: '40px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="efx-flex efx-flex-col efx-gap-lg" style={{ padding: '40px 24px' }}>
       
       {/* Header */}
       <div className="efx-flex efx-items-center efx-justify-between efx-mb-md">

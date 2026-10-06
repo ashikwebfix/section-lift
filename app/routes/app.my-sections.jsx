@@ -171,85 +171,75 @@ export default function MySections() {
   const filtered = activeTab === "SECTION" ? sectionEntitlements : pageEntitlements;
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-md" style={{ padding: '24px' }}>
-      <h1 className="efx-heading-xl" style={{ margin: 0 }}>My Library</h1>
+    <div style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+      <h1 className="sl-page-title">My Library</h1>
 
       {/* Tabs */}
-      <div className="efx-flex efx-gap-xs" style={{ borderBottom: '1px solid var(--efx-border-solid)' }}>
+      <div className="sl-tabs">
         <button
           onClick={() => setActiveTab("SECTION")}
-          style={{
-            padding: '10px 20px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            borderBottom: activeTab === "SECTION" ? '2px solid #111827' : '2px solid transparent',
-            color: activeTab === "SECTION" ? '#111827' : '#6b7280',
-            transition: 'all 0.2s ease',
-          }}
+          className={`sl-tab ${activeTab === "SECTION" ? "sl-tab-active" : ""}`}
         >
           Sections ({sectionEntitlements.length})
         </button>
         <button
           onClick={() => setActiveTab("PAGE")}
-          style={{
-            padding: '10px 20px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            borderBottom: activeTab === "PAGE" ? '2px solid #111827' : '2px solid transparent',
-            color: activeTab === "PAGE" ? '#111827' : '#6b7280',
-            transition: 'all 0.2s ease',
-          }}
+          className={`sl-tab ${activeTab === "PAGE" ? "sl-tab-active" : ""}`}
         >
           Pages ({pageEntitlements.length})
         </button>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="efx-solid-card efx-flex efx-flex-col efx-items-center efx-gap-sm" style={{ padding: '40px 24px', textAlign: 'center' }}>
-          <h2 className="efx-heading-lg" style={{ margin: 0 }}>No {activeTab === "SECTION" ? "sections" : "pages"} yet</h2>
-          <p className="efx-text-subdued" style={{ maxWidth: '360px' }}>
-            Browse the {activeTab === "SECTION" ? "Sections" : "Pages"} page to find and add your first one.
-          </p>
-          <Link to={activeTab === "SECTION" ? "/app/discover" : "/app/pages"} className="efx-button efx-button-primary" style={{ textDecoration: 'none' }}>
-            Browse {activeTab === "SECTION" ? "Sections" : "Pages"}
-          </Link>
+        <div className="sl-card sl-card-body">
+          <div className="sl-empty-state">
+            <div className="sl-empty-state-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <h2 className="sl-section-title">No {activeTab === "SECTION" ? "sections" : "pages"} yet</h2>
+            <p className="sl-caption" style={{ maxWidth: "360px" }}>
+              Browse the catalog to find and add your first {activeTab === "SECTION" ? "section" : "page"}.
+            </p>
+            <Link to={activeTab === "SECTION" ? "/app/discover" : "/app/pages"} className="sl-btn sl-btn-primary sl-mt-4">
+              Browse {activeTab === "SECTION" ? "Sections" : "Pages"}
+            </Link>
+          </div>
         </div>
       ) : (
-        <div className="efx-flex efx-flex-col efx-gap-sm">
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {filtered.map((entitlement) => {
             const section = entitlement.section;
             return (
-              <div key={entitlement.id} className="efx-solid-card efx-flex efx-items-center efx-gap-md" style={{ padding: '12px 16px' }}>
+              <div key={entitlement.id} className="sl-card" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: "20px" }}>
+                
                 {/* Thumbnail */}
-                <div style={{ width: '56px', height: '56px', borderRadius: 'var(--efx-radius-sm)', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
+                <div style={{ width: "64px", height: "64px", borderRadius: "var(--sl-radius-sm)", overflow: "hidden", flexShrink: 0, background: "var(--sl-surface-sunken)" }}>
                   {section.preview_image_url ? (
-                    <img src={section.preview_image_url} alt={section.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={section.preview_image_url} alt={section.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '10px' }}>N/A</div>
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--sl-text-tertiary)", fontSize: "10px" }}>No Prev</div>
                   )}
                 </div>
 
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="efx-text-body" style={{ fontWeight: 600, margin: 0, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{section.name}</div>
-                  <div className="efx-text-subdued" style={{ fontSize: '0.8rem' }}>
-                    {entitlement.source_type === "FREE" ? "Free" : entitlement.source_type === "SUBSCRIPTION" ? "Subscription" : "Purchased"} · {new Date(entitlement.granted_at).toLocaleDateString()}
+                  <div className="sl-card-title sl-truncate">{section.name}</div>
+                  <div className="sl-caption sl-mt-1">
+                    {entitlement.source_type === "FREE" ? "Free" : entitlement.source_type === "SUBSCRIPTION" ? "Subscription" : "Purchased"} 
+                    <span style={{ margin: "0 6px", opacity: 0.5 }}>•</span> 
+                    {new Date(entitlement.granted_at).toLocaleDateString()}
                   </div>
                 </div>
 
-                {/* Theme select + actions */}
-                <div className="efx-flex efx-items-center efx-gap-sm" style={{ flexShrink: 0 }}>
+                {/* Actions */}
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
                   <select 
-                    className="efx-input" 
+                    className="sl-select" 
                     value={selectedThemes[section.id] || ""} 
                     onChange={(e) => handleThemeChange(section.id, e.target.value)}
-                    style={{ width: '180px', padding: '8px 10px', fontSize: '0.85rem' }}
+                    style={{ width: "180px", padding: "6px 10px", fontSize: "12px" }}
                   >
                     <option value="">Select theme...</option>
                     {themes.map(t => (
@@ -257,21 +247,20 @@ export default function MySections() {
                     ))}
                   </select>
                   <button 
-                    className="efx-button efx-button-primary" 
+                    className="sl-btn sl-btn-primary sl-btn-sm" 
                     onClick={() => handleInstall(section.id)}
                     disabled={!selectedThemes[section.id] || fetcher.state !== "idle"}
-                    style={{ padding: '8px 16px', fontSize: '0.85rem' }}
                   >
                     Install
                   </button>
                   <button 
-                    className="efx-button"
+                    className="sl-btn sl-btn-ghost sl-btn-sm"
                     onClick={() => handleRemove(section.id)}
                     disabled={fetcher.state !== "idle"}
-                    style={{ padding: '8px 12px', fontSize: '0.85rem', color: '#ef4444', background: 'transparent', border: '1px solid #fecaca' }}
+                    style={{ color: "var(--sl-error)", padding: "6px" }}
                     title="Remove from Library"
                   >
-                    ✕
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
               </div>

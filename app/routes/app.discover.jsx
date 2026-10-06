@@ -12,31 +12,18 @@ export const loader = async ({ request }) => {
   const pricing = url.searchParams.get("pricing") || "";
   const tagParam = url.searchParams.get("tag") || "";
 
-  const whereClause = {
-    status: "PUBLISHED",
-    type: "SECTION",
-  };
+  const whereClause = { status: "PUBLISHED", type: "SECTION" };
 
   if (q) {
     whereClause.OR = [
       { name: { contains: q } },
-      { short_description: { contains: q } }
+      { short_description: { contains: q } },
     ];
   }
-
-  if (categoryId) {
-    whereClause.category_id = categoryId;
-  }
-
-  if (pricing === "free") {
-    whereClause.is_free = true;
-  } else if (pricing === "paid") {
-    whereClause.is_free = false;
-  }
-
-  if (tagParam) {
-    whereClause.tag = { contains: tagParam };
-  }
+  if (categoryId) whereClause.category_id = categoryId;
+  if (pricing === "free") whereClause.is_free = true;
+  else if (pricing === "paid") whereClause.is_free = false;
+  if (tagParam) whereClause.tag = { contains: tagParam };
 
   const [sections, categories, allSectionsForTags] = await Promise.all([
     prisma.section.findMany({
@@ -44,49 +31,31 @@ export const loader = async ({ request }) => {
       include: { category: true },
       orderBy: { created_at: "desc" },
     }),
-    prisma.category.findMany({
-      orderBy: { sort_order: "asc" }
-    }),
+    prisma.category.findMany({ orderBy: { sort_order: "asc" } }),
     prisma.section.findMany({
       where: { status: "PUBLISHED", type: "SECTION" },
-      select: { tag: true }
-    })
+      select: { tag: true },
+    }),
   ]);
 
-  const allTags = [...new Set(allSectionsForTags.flatMap(s => s.tag ? s.tag.split(',').map(t => t.trim()) : []).filter(Boolean))];
+  const allTags = [
+    ...new Set(
+      allSectionsForTags
+        .flatMap((s) => (s.tag ? s.tag.split(",").map((t) => t.trim()) : []))
+        .filter(Boolean)
+    ),
+  ];
 
-  // Fetch Entitlements
   const entitlements = await prisma.entitlement.findMany({
     where: { shop_domain: session.shop, status: "ACTIVE" },
   });
 
-  // Fetch Themes
-  const response = await admin.graphql(
-    `#graphql
-    query {
-      themes(first: 10) {
-        edges {
-          node {
-            id
-            name
-            role
-          }
-        }
-      }
-    }`
-  );
+  const response = await admin.graphql(`#graphql
+    query { themes(first: 10) { edges { node { id name role } } } }`);
   const responseJson = await response.json();
-  const themes = responseJson.data.themes.edges.map(edge => edge.node);
+  const themes = responseJson.data.themes.edges.map((edge) => edge.node);
 
-  return {
-    sections,
-    categories,
-    allTags,
-    filters: { q, category: categoryId, pricing, tag: tagParam },
-    entitlements,
-    themes,
-    shopDomain: session.shop
-  };
+  return { sections, categories, allTags, filters: { q, category: categoryId, pricing, tag: tagParam }, entitlements, themes, shopDomain: session.shop };
 };
 
 export const action = async ({ request }) => {
@@ -97,159 +66,110 @@ export const action = async ({ request }) => {
 
   if (!sectionId) return { success: false, error: "Section ID is required" };
 
-  const section = await prisma.section.findUnique({ 
+  const section = await prisma.section.findUnique({
     where: { id: sectionId },
-    include: { versions: { orderBy: { published_at: 'desc' }, take: 1 } }
+    include: { versions: { orderBy: { published_at: "desc" }, take: 1 } },
   });
-
   if (!section) return { success: false, error: "Section not found" };
 
   if (intent === "claim_free") {
     if (!section.is_free) return { success: false, error: "Invalid claim request" };
-
-    const existing = await prisma.entitlement.findFirst({
-      where: { shop_domain: session.shop, section_id: section.id },
-    });
-
+    const existing = await prisma.entitlement.findFirst({ where: { shop_domain: session.shop, section_id: section.id } });
     if (!existing) {
       await prisma.entitlement.create({
-        data: {
-          shop_domain: session.shop,
-          section_id: section.id,
-          source_type: "FREE",
-          status: "ACTIVE",
-        },
+        data: { shop_domain: session.shop, section_id: section.id, source_type: "FREE", status: "ACTIVE" },
       });
     }
     return { success: true, action: "claimed", sectionId };
   }
 
   if (intent === "remove") {
-    await prisma.entitlement.deleteMany({
-      where: { shop_domain: session.shop, section_id: section.id }
-    });
+    await prisma.entitlement.deleteMany({ where: { shop_domain: session.shop, section_id: section.id } });
     return { success: true, action: "removed", sectionId };
   }
 
   if (intent === "purchase") {
     if (section.is_free) return { success: false, error: "Section is free" };
-
     const returnUrl = `https://${session.shop}/admin/apps/${process.env.SHOPIFY_API_KEY}/app/purchase-callback?section_id=${section.id}`;
     const chargeName = `EFX_SECTION_${section.handle}`;
-
     const response = await admin.graphql(
       `#graphql
       mutation AppPurchaseOneTimeCreate($name: String!, $price: MoneyInput!, $returnUrl: URL!, $test: Boolean) {
         appPurchaseOneTimeCreate(name: $name, price: $price, returnUrl: $returnUrl, test: $test) {
-          appPurchaseOneTime {
-            id
-            status
-          }
+          appPurchaseOneTime { id status }
           confirmationUrl
-          userErrors {
-            field
-            message
-          }
+          userErrors { field message }
         }
       }`,
-      {
-        variables: {
-          name: chargeName,
-          price: { amount: section.price, currencyCode: "USD" },
-          returnUrl: returnUrl,
-          test: true 
-        }
-      }
+      { variables: { name: chargeName, price: { amount: section.price, currencyCode: "USD" }, returnUrl, test: true } }
     );
     const json = await response.json();
     const data = json.data?.appPurchaseOneTimeCreate;
-
-    if (data?.userErrors?.length > 0) {
-      return { success: false, error: data.userErrors[0].message };
-    }
-
-    if (data?.confirmationUrl) {
-      return { success: true, action: "purchase_redirect", confirmationUrl: data.confirmationUrl };
-    }
-
+    if (data?.userErrors?.length > 0) return { success: false, error: data.userErrors[0].message };
+    if (data?.confirmationUrl) return { success: true, action: "purchase_redirect", confirmationUrl: data.confirmationUrl };
     return { success: false, error: "Failed to create purchase charge" };
   }
 
   if (intent === "install") {
     const themeId = formData.get("themeId");
     if (!section.versions || section.versions.length === 0) return { success: false, error: "Section version not found", sectionName: section.name };
-
     const activeVersion = section.versions[0];
     const liquidContent = activeVersion.liquid_content || "";
-
     try {
-
-    const themeResponse = await admin.graphql(
-      `#graphql
-      query getTheme($id: ID!) {
-        theme(id: $id) {
-          name
-          role
-        }
-      }`,
-      { variables: { id: themeId } }
-    );
-    const themeJson = await themeResponse.json();
-    const themeData = themeJson.data.theme;
-
-    const safeHandle = section.handle.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-');
-    const filename = `sections/${safeHandle}.liquid`;
-
-    const upsertResponse = await admin.graphql(
-      `#graphql
-      mutation themeFilesUpsert($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
-        themeFilesUpsert(themeId: $themeId, files: $files) {
-          upsertedThemeFiles {
-            filename
+      const themeResponse = await admin.graphql(
+        `#graphql query getTheme($id: ID!) { theme(id: $id) { name role } }`,
+        { variables: { id: themeId } }
+      );
+      const themeJson = await themeResponse.json();
+      const themeData = themeJson.data.theme;
+      const safeHandle = section.handle.toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/-+/g, "-");
+      const filename = `sections/${safeHandle}.liquid`;
+      const upsertResponse = await admin.graphql(
+        `#graphql
+        mutation themeFilesUpsert($themeId: ID!, $files: [OnlineStoreThemeFilesUpsertFileInput!]!) {
+          themeFilesUpsert(themeId: $themeId, files: $files) {
+            upsertedThemeFiles { filename }
+            userErrors { field message }
           }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
-      {
-        variables: {
-          themeId: themeId,
-          files: [{ filename, body: { type: "TEXT", value: liquidContent } }],
-        },
-      }
-    );
+        }`,
+        { variables: { themeId, files: [{ filename, body: { type: "TEXT", value: liquidContent } }] } }
+      );
       const upsertJson = await upsertResponse.json();
       const userErrors = upsertJson.data?.themeFilesUpsert?.userErrors;
-
-      if (userErrors && userErrors.length > 0) {
-        console.error("Theme Upsert User Error:", userErrors);
-        return { success: false, error: userErrors[0].message, sectionName: section.name };
-      }
-
+      if (userErrors && userErrors.length > 0) return { success: false, error: userErrors[0].message, sectionName: section.name };
       await prisma.installation.create({
         data: {
-          shop_domain: session.shop,
-          section_id: section.id,
-          section_version_id: activeVersion.id,
-          theme_id: themeId,
-          theme_name: themeData?.name || "Unknown",
-          theme_role: themeData?.role || "Unknown",
-          filename: filename,
-          status: "ACTIVE"
-        }
+          shop_domain: session.shop, section_id: section.id, section_version_id: activeVersion.id,
+          theme_id: themeId, theme_name: themeData?.name || "Unknown", theme_role: themeData?.role || "Unknown",
+          filename, status: "ACTIVE",
+        },
       });
-
       return { success: true, action: "installed", themeId, sectionName: section.name };
     } catch (err) {
-      console.error("Install action error:", err);
       return { success: false, error: `Installation failed: ${err.message || "An unexpected error occurred"}`, sectionName: section.name };
     }
   }
 
   return { success: false };
 };
+
+const SearchIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", opacity: 0.4, pointerEvents: "none" }}>
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+);
+
+const XIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+const CheckCircle = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+);
 
 export default function Discover() {
   const { sections, categories, allTags, filters, entitlements, themes, shopDomain } = useLoaderData();
@@ -261,11 +181,7 @@ export default function Discover() {
 
   const handleFilterChange = (key, value) => {
     const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set(key, value);
-    } else {
-      newParams.delete(key);
-    }
+    value ? newParams.set(key, value) : newParams.delete(key);
     setSearchParams(newParams);
   };
 
@@ -280,84 +196,92 @@ export default function Discover() {
     }
   }, [fetcher.data]);
 
-  const isOwned = selectedSection ? entitlements.some(e => e.section_id === selectedSection.id) : false;
-  const installedThemeId = (fetcher.data?.action === "installed" && fetcher.data?.sectionName === selectedSection?.name) ? fetcher.data.themeId : null;
+  const isOwned = selectedSection ? entitlements.some((e) => e.section_id === selectedSection.id) : false;
+  const installedThemeId =
+    fetcher.data?.action === "installed" && fetcher.data?.sectionName === selectedSection?.name
+      ? fetcher.data.themeId
+      : null;
 
-  const handleClaim = () => {
-    fetcher.submit({ intent: "claim_free", sectionId: selectedSection.id }, { method: "post" });
-  };
-
-  const handlePurchase = () => {
-    fetcher.submit({ intent: "purchase", sectionId: selectedSection.id }, { method: "post" });
-  };
-
+  const handleClaim = () => fetcher.submit({ intent: "claim_free", sectionId: selectedSection.id }, { method: "post" });
+  const handlePurchase = () => fetcher.submit({ intent: "purchase", sectionId: selectedSection.id }, { method: "post" });
   const handleInstall = () => {
     if (!selectedThemeId) return;
     fetcher.submit({ intent: "install", sectionId: selectedSection.id, themeId: selectedThemeId }, { method: "post" });
   };
-
-  const handleCloseModal = () => {
-    setSelectedSection(null);
-    setSelectedThemeId("");
-  };
-
+  const handleCloseModal = () => { setSelectedSection(null); setSelectedThemeId(""); };
   const handleRemove = () => {
-    if (window.confirm("Are you sure you want to remove this section from your library?")) {
+    if (window.confirm("Remove this section from your library?")) {
       fetcher.submit({ intent: "remove", sectionId: selectedSection.id }, { method: "post" });
     }
   };
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-lg" style={{ padding: '32px', position: 'relative' }}>
-      <div className="efx-flex efx-flex-col efx-gap-sm">
-        <h1 className="efx-heading-xl">Discover Sections</h1>
-        <p className="efx-text-body">
-          Browse our collection of high-quality, native Shopify sections. 
-          Install them directly into your theme to customize your store instantly.
+    <div style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+
+      {/* ── Header ── */}
+      <div>
+        <h1 className="sl-page-title">Browse Sections</h1>
+        <p className="sl-body sl-mt-1">
+          High-quality native Shopify sections — install directly into your theme.
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="efx-glass-card efx-flex efx-flex-row efx-gap-md efx-items-center" style={{ padding: '16px 24px' }}>
-        <input 
-          type="text" 
-          placeholder="Search sections..." 
-          value={filters.q}
-          onChange={(e) => handleFilterChange("q", e.target.value)}
-          className="efx-input"
-          style={{ flexGrow: 1 }}
-        />
-        <select 
-          value={filters.categoryId} 
+      {/* ── Filter Bar ── */}
+      <div className="sl-filter-bar">
+        <div style={{ position: "relative", flex: 1, minWidth: "180px" }}>
+          <SearchIcon />
+          <input
+            type="text"
+            placeholder="Search sections..."
+            value={filters.q}
+            onChange={(e) => handleFilterChange("q", e.target.value)}
+            className="sl-input"
+            style={{ paddingLeft: "34px" }}
+          />
+        </div>
+
+        <select
+          value={filters.category}
           onChange={(e) => handleFilterChange("category", e.target.value)}
-          className="efx-input"
-          style={{ width: '200px' }}
+          className="sl-select"
+          style={{ width: "180px", flexShrink: 0 }}
         >
           <option value="">All Categories</option>
-          {categories.map(c => (
+          {categories.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <select 
-          value={filters.pricing} 
+
+        <select
+          value={filters.pricing}
           onChange={(e) => handleFilterChange("pricing", e.target.value)}
-          className="efx-input"
-          style={{ width: '150px' }}
+          className="sl-select"
+          style={{ width: "140px", flexShrink: 0 }}
         >
           <option value="">All Prices</option>
           <option value="free">Free</option>
-          <option value="paid">Premium</option>
+          <option value="paid">Paid</option>
         </select>
+
+        {(filters.q || filters.category || filters.pricing || filters.tag) && (
+          <button
+            onClick={() => setSearchParams({})}
+            className="sl-btn sl-btn-ghost sl-btn-sm"
+            style={{ flexShrink: 0 }}
+          >
+            <XIcon /> Clear
+          </button>
+        )}
       </div>
 
-      {allTags && allTags.length > 0 && (
-        <div className="efx-flex efx-flex-row efx-gap-sm" style={{ flexWrap: 'wrap', marginTop: '-8px' }}>
-          {allTags.map(tag => (
+      {/* ── Tag Chips ── */}
+      {allTags.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+          {allTags.map((tag) => (
             <button
               key={tag}
               onClick={() => handleFilterChange("tag", filters.tag === tag ? "" : tag)}
-              className={`efx-button ${filters.tag === tag ? 'efx-button-primary' : ''}`}
-              style={{ padding: '4px 12px', fontSize: '0.85rem' }}
+              className={`sl-chip ${filters.tag === tag ? "sl-chip-active" : ""}`}
             >
               {tag}
             </button>
@@ -365,176 +289,203 @@ export default function Discover() {
         </div>
       )}
 
+      {/* ── Results ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span className="sl-caption">{sections.length} {sections.length === 1 ? "result" : "results"}</span>
+      </div>
+
       {sections.length === 0 ? (
-        <div className="efx-solid-card" style={{ textAlign: 'center', padding: '48px' }}>
-          <p className="efx-text-subdued">No sections found matching your criteria.</p>
+        <div className="sl-card sl-card-body">
+          <div className="sl-empty-state">
+            <div className="sl-empty-state-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <p className="sl-body" style={{ fontWeight: 500 }}>No sections match your filters</p>
+            <p className="sl-caption">Try adjusting your search or removing a filter.</p>
+          </div>
         </div>
       ) : (
-        <div className="efx-grid-3">
+        <div className="sl-grid-3">
           {sections.map((section) => (
-            <div 
-              key={section.id} 
-              className={`efx-glass-card efx-glass-card-interactive efx-flex efx-flex-col ${section.is_exclusive ? 'efx-premium-card' : ''}`}
+            <div
+              key={section.id}
+              className="sl-section-card"
               onClick={() => setSelectedSection(section)}
-              style={{ cursor: 'pointer' }}
             >
-              <div style={{ height: '180px', marginBottom: '16px', backgroundColor: '#e4e5e7', position: 'relative', borderRadius: 'var(--efx-radius-md)', overflow: 'hidden' }}>
+              <div className="sl-image-wrap">
                 {section.preview_image_url ? (
-                  <img src={section.preview_image_url} alt={section.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={section.preview_image_url} alt={section.name} className="sl-section-card-image" />
                 ) : (
-                  <div className="efx-flex efx-items-center efx-justify-center" style={{ height: '100%', color: '#8c9196' }}>No Preview</div>
+                  <div className="sl-section-card-image-placeholder">No Preview</div>
                 )}
-                <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '8px' }}>
+                <div className="sl-badge-overlay">
                   {section.is_free ? (
-                    <span style={{ background: '#10b981', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Free</span>
+                    <span className="sl-badge sl-tier-free">Free</span>
                   ) : section.is_exclusive ? (
-                    <span className="efx-badge-premium" style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Premium</span>
+                    <span className="sl-badge sl-tier-premium">Premium</span>
                   ) : (
-                    <span style={{ background: '#202223', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Pro</span>
+                    <span className="sl-badge sl-tier-pro">Pro</span>
                   )}
                 </div>
               </div>
-              
-              <div className="efx-flex efx-flex-col efx-gap-sm" style={{ flexGrow: 1 }}>
-                <div>
-                  <span className="efx-badge">{section.category?.name}</span>
-                  <h3 className="efx-heading-lg" style={{fontSize: '1.25rem', marginBottom: '4px'}}>{section.name}</h3>
-                </div>
-                
-                <p className="efx-text-subdued" style={{ flexGrow: 1, marginBottom: '16px' }}>
-                  {section.short_description}
-                </p>
 
-                <div className="efx-flex efx-flex-row efx-justify-between efx-items-center">
-                  <span className="efx-heading-md" style={{margin: 0}}>
-                    {section.is_free ? "Free" : `$${section.price.toFixed(2)}`}
-                  </span>
-                  <button onClick={() => setSelectedSection(section)} className="efx-button efx-button-primary">
-                    View details
-                  </button>
-                </div>
+              <div className="sl-section-card-body">
+                <span className="sl-caption">{section.category?.name || "Section"}</span>
+                <span className="sl-card-title">{section.name}</span>
+                {section.short_description && (
+                  <p className="sl-caption sl-truncate" style={{ WebkitLineClamp: 2, WebkitBoxOrient: "vertical", display: "-webkit-box", overflow: "hidden", whiteSpace: "normal" }}>
+                    {section.short_description}
+                  </p>
+                )}
+              </div>
+
+              <div className="sl-section-card-footer">
+                <span style={{ fontWeight: 600, fontSize: "14px", color: "var(--sl-text-primary)" }}>
+                  {section.is_free ? "Free" : `$${section.price.toFixed(2)}`}
+                </span>
+                <span className="sl-btn sl-btn-secondary sl-btn-sm" style={{ pointerEvents: "none" }}>View</span>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal Overlay */}
+      {/* ── Detail Modal ── */}
       {selectedSection && (
-        <div 
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-          }}
-          onClick={handleCloseModal}
-        >
-          <div 
-            className="efx-glass-card" 
-            style={{ maxWidth: '1000px', width: '100%', maxHeight: '90vh', padding: '0', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Left side: Image */}
-            <div style={{ flex: '1 1 400px', minHeight: '400px', position: 'relative', backgroundColor: 'var(--efx-color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="sl-modal-backdrop" onClick={handleCloseModal}>
+          <div className="sl-modal" onClick={(e) => e.stopPropagation()}>
+
+            {/* Left: Image */}
+            <div style={{
+              flex: "1 1 380px", minHeight: "360px",
+              background: "var(--sl-surface-sunken)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              position: "relative", overflow: "hidden",
+            }}>
               {selectedSection.preview_image_url ? (
-                <img src={selectedSection.preview_image_url} alt={selectedSection.name} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }} />
+                <img
+                  src={selectedSection.preview_image_url}
+                  alt={selectedSection.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+                />
               ) : (
-                <div className="efx-preview-skeleton" style={{ width: '100%', height: '100%', position: 'absolute' }}>
-                  <span className="efx-text-subdued">No Preview</span>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", color: "var(--sl-text-tertiary)" }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span className="sl-caption">No preview available</span>
                 </div>
               )}
             </div>
 
-            {/* Right side: Content */}
-            <div style={{ flex: '1 1 400px', padding: '0', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflowY: 'auto' }}>
-              <div style={{ padding: '32px', flexGrow: 1 }}>
-                <div className="efx-flex efx-justify-between efx-items-start efx-mb-md">
+            {/* Right: Content */}
+            <div style={{ flex: "1 1 380px", display: "flex", flexDirection: "column", maxHeight: "88vh", overflowY: "auto" }}>
+              <div style={{ padding: "28px", flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "16px" }}>
                   <div>
-                    <span className="efx-badge">{selectedSection.category?.name}</span>
-                    <h2 className="efx-heading-xl efx-mt-sm" style={{margin:0}}>{selectedSection.name}</h2>
+                    <span className="sl-badge sl-badge-default sl-mb-2" style={{ display: "inline-flex", marginBottom: "8px" }}>
+                      {selectedSection.category?.name || "Section"}
+                    </span>
+                    <h2 style={{ fontSize: "18px", fontWeight: 650, letterSpacing: "-0.02em", color: "var(--sl-text-primary)", margin: 0 }}>
+                      {selectedSection.name}
+                    </h2>
                   </div>
-                  <button className="efx-button" onClick={handleCloseModal}>Close</button>
+                  <button
+                    className="sl-btn sl-btn-ghost sl-btn-sm"
+                    onClick={handleCloseModal}
+                    style={{ flexShrink: 0 }}
+                    aria-label="Close"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
                 </div>
 
-                <p className="efx-text-body efx-mb-lg" style={{ fontSize: '1.1rem' }}>
+                <p className="sl-body" style={{ lineHeight: 1.7 }}>
                   {selectedSection.full_description || selectedSection.short_description}
                 </p>
               </div>
-              
-              <div className="efx-solid-card efx-flex efx-flex-col efx-gap-md" style={{ padding: '24px', margin: '0 32px 32px 32px', position: 'sticky', bottom: 0, zIndex: 10, flexShrink: 0, boxShadow: '0 -10px 20px rgba(0,0,0,0.05)' }}>
-               {fetcher.data?.error && (
-                 <div style={{ padding: '12px', backgroundColor: 'var(--efx-color-error)', color: '#000', borderRadius: '4px' }}>
-                   {fetcher.data.error}
-                 </div>
-               )}
 
-               {installedThemeId ? (
-                 <div className="efx-flex efx-flex-col efx-gap-sm efx-items-center" style={{ textAlign: 'center' }}>
-                   <h3 className="efx-heading-lg" style={{ color: 'var(--efx-color-success)', margin: 0 }}>Installed Successfully!</h3>
-                   <p className="efx-text-body" style={{ margin: 0 }}>The section has been added to your theme.</p>
-                   <a 
-                     href={`https://${shopDomain}/admin/themes/${installedThemeId.split("/").pop()}/editor`} 
-                     target="_blank" 
-                     rel="noopener noreferrer" 
-                     className="efx-button efx-button-primary efx-mt-sm"
-                   >
-                     Go to Theme Editor
-                   </a>
-                 </div>
-               ) : isOwned ? (
-                 <div className="efx-flex efx-flex-col efx-gap-sm">
-                   <h3 className="efx-heading-md" style={{margin:0}}>Install to Theme</h3>
-                   <div className="efx-flex efx-gap-sm">
-                     <select 
-                       className="efx-input" 
-                       value={selectedThemeId} 
-                       onChange={(e) => setSelectedThemeId(e.target.value)}
-                       style={{ flexGrow: 1 }}
-                     >
-                       <option value="">Select a theme...</option>
-                       {themes.map(t => (
-                         <option key={t.id} value={t.id}>
-                           {t.name} ({t.role})
-                         </option>
-                       ))}
-                     </select>
-                     <button 
-                       className="efx-button efx-button-primary" 
-                       onClick={handleInstall}
-                       disabled={!selectedThemeId || isInstalling}
-                     >
-                       {isInstalling ? 'Installing...' : 'Install'}
-                     </button>
-                   </div>
-                   <div style={{ marginTop: '16px', textAlign: 'center' }}>
-                     <button 
-                       onClick={handleRemove} 
-                       disabled={isRemoving}
-                       style={{ background: 'none', border: 'none', color: 'var(--efx-color-error)', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.9rem' }}
-                     >
-                       {isRemoving ? 'Removing...' : 'Remove from Library'}
-                     </button>
-                   </div>
-                 </div>
-               ) : (
-                 <div className="efx-flex efx-justify-between efx-items-center">
-                   <div>
-                     <h3 className="efx-heading-lg" style={{margin:0}}>
-                       {selectedSection.is_free ? "Free Section" : `$${selectedSection.price.toFixed(2)}`}
-                     </h3>
-                     <p className="efx-text-subdued" style={{margin:0}}>One-time purchase, yours forever.</p>
-                   </div>
-                   {selectedSection.is_free ? (
-                     <button className="efx-button efx-button-primary" onClick={handleClaim} disabled={isClaiming}>
-                       {isClaiming ? 'Claiming...' : 'Claim Free Section'}
-                     </button>
-                   ) : (
-                     <button className="efx-button efx-button-primary" onClick={handlePurchase} disabled={isPurchasing}>
-                       {isPurchasing ? 'Processing...' : 'Purchase Section'}
-                     </button>
-                   )}
-                 </div>
-               )}
+              {/* Sticky Action Footer */}
+              <div style={{
+                padding: "20px 28px",
+                borderTop: "1px solid var(--sl-border)",
+                background: "var(--sl-surface)",
+                position: "sticky", bottom: 0, zIndex: 10,
+              }}>
+                {fetcher.data?.error && (
+                  <div className="sl-alert sl-alert-error sl-mb-3">
+                    {fetcher.data.error}
+                  </div>
+                )}
+
+                {installedThemeId ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", textAlign: "center" }}>
+                    <div style={{ color: "var(--sl-success)", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <CheckCircle />
+                      <span style={{ fontWeight: 600, fontSize: "14px" }}>Installed Successfully</span>
+                    </div>
+                    <a
+                      href={`https://${shopDomain}/admin/themes/${installedThemeId.split("/").pop()}/editor`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="sl-btn sl-btn-primary"
+                    >
+                      Open Theme Editor →
+                    </a>
+                  </div>
+                ) : isOwned ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <span className="sl-label-text">Install to Theme</span>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <select
+                        className="sl-select"
+                        value={selectedThemeId}
+                        onChange={(e) => setSelectedThemeId(e.target.value)}
+                        style={{ flex: 1 }}
+                      >
+                        <option value="">Select a theme...</option>
+                        {themes.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name} ({t.role})</option>
+                        ))}
+                      </select>
+                      <button
+                        className="sl-btn sl-btn-primary"
+                        onClick={handleInstall}
+                        disabled={!selectedThemeId || isInstalling}
+                      >
+                        {isInstalling ? "Installing..." : "Install"}
+                      </button>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <button
+                        onClick={handleRemove}
+                        disabled={isRemoving}
+                        className="sl-btn sl-btn-ghost sl-btn-sm"
+                        style={{ color: "var(--sl-error)" }}
+                      >
+                        {isRemoving ? "Removing..." : "Remove from Library"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+                    <div>
+                      <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--sl-text-primary)" }}>
+                        {selectedSection.is_free ? "Free" : `$${selectedSection.price.toFixed(2)}`}
+                      </div>
+                      {!selectedSection.is_free && (
+                        <span className="sl-caption">One-time purchase, yours forever</span>
+                      )}
+                    </div>
+                    {selectedSection.is_free ? (
+                      <button className="sl-btn sl-btn-primary" onClick={handleClaim} disabled={isClaiming}>
+                        {isClaiming ? "Claiming..." : "Claim Free Section"}
+                      </button>
+                    ) : (
+                      <button className="sl-btn sl-btn-primary" onClick={handlePurchase} disabled={isPurchasing}>
+                        {isPurchasing ? "Processing..." : "Purchase Section"}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

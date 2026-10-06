@@ -71,89 +71,80 @@ export default function CategoriesPage() {
   const isSubmitting = navigation.state === "submitting";
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-md">
-      <h1 className="efx-heading-xl" style={{ margin: 0 }}>Categories</h1>
+    <div className="sl-page-container">
+      <div className="sl-page-header">
+        <h1 className="sl-page-title">Categories</h1>
+        <p className="sl-page-desc">Manage categories for sections.</p>
+      </div>
 
       {actionData?.error && (
-        <div style={{ padding: '10px 16px', background: '#fef2f2', color: '#dc2626', borderRadius: 'var(--efx-radius-sm)', border: '1px solid #fecaca', fontSize: '0.9rem' }}>
-          {actionData.error}
-        </div>
+        <div className="sl-alert sl-alert-error sl-mb-6" role="alert">{actionData.error}</div>
       )}
       {actionData?.success && (
-        <div style={{ padding: '10px 16px', background: '#f0fdf4', color: '#16a34a', borderRadius: 'var(--efx-radius-sm)', border: '1px solid #bbf7d0', fontSize: '0.9rem' }}>
-          {actionData.message}
-        </div>
+        <div className="sl-alert sl-alert-success sl-mb-6" role="alert">{actionData.message}</div>
       )}
 
       {/* Add New Category */}
-      <Form method="post" className="efx-solid-card efx-flex efx-items-end efx-gap-sm" style={{ padding: '16px' }}>
+      <Form method="post" className="sl-card sl-p-6 sl-flex sl-items-end sl-gap-4 sl-mb-6">
         <input type="hidden" name="intent" value="create" />
-        <div className="efx-flex efx-flex-col efx-gap-xs" style={{ flex: 1 }}>
-          <label className="efx-text-subdued" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Category Name</label>
-          <input type="text" name="name" className="efx-input" placeholder="e.g. Hero Banners" required style={{ padding: '10px 12px' }} />
+        <div className="sl-field" style={{ flex: 1, marginBottom: 0 }}>
+          <label className="sl-label-text">Category Name</label>
+          <input type="text" name="name" className="sl-input" placeholder="e.g. Hero Banners" required />
         </div>
-        <div className="efx-flex efx-flex-col efx-gap-xs" style={{ width: '100px' }}>
-          <label className="efx-text-subdued" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Sort Order</label>
-          <input type="number" name="sort_order" className="efx-input" defaultValue="0" style={{ padding: '10px 12px' }} />
+        <div className="sl-field" style={{ width: '120px', marginBottom: 0 }}>
+          <label className="sl-label-text">Sort Order</label>
+          <input type="number" name="sort_order" className="sl-input" defaultValue="0" />
         </div>
-        <button type="submit" className="efx-button efx-button-primary" disabled={isSubmitting} style={{ padding: '10px 20px' }}>
+        <button type="submit" className="sl-btn sl-btn-primary" disabled={isSubmitting}>
           {isSubmitting ? 'Adding...' : 'Add Category'}
         </button>
       </Form>
 
       {/* Categories List */}
-      <div className="efx-solid-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="sl-card" style={{ padding: 0 }}>
         {categories.length === 0 ? (
-          <div style={{ padding: '32px', textAlign: 'center' }}>
-            <p className="efx-text-subdued">No categories yet. Add one above.</p>
+          <div className="sl-p-8 sl-text-center sl-text-subdued">
+            No categories yet. Add one above.
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--efx-border-solid)' }}>
-                <th className="efx-text-subdued" style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</th>
-                <th className="efx-text-subdued" style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Slug</th>
-                <th className="efx-text-subdued" style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '80px' }}>Order</th>
-                <th className="efx-text-subdued" style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '80px' }}>Sections</th>
-                <th className="efx-text-subdued" style={{ padding: '12px 16px', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '140px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((cat) => (
-                <tr key={cat.id} style={{ borderBottom: '1px solid var(--efx-border-solid)' }}>
-                  <td style={{ padding: '10px 16px' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cat.name}</span>
-                  </td>
-                  <td style={{ padding: '10px 16px' }}>
-                    <span className="efx-text-subdued" style={{ fontSize: '0.85rem', fontFamily: 'monospace' }}>{cat.slug}</span>
-                  </td>
-                  <td style={{ padding: '10px 16px' }}>
-                    <span className="efx-text-subdued">{cat.sort_order}</span>
-                  </td>
-                  <td style={{ padding: '10px 16px' }}>
-                    <span className="efx-text-subdued">{cat._count.sections}</span>
-                  </td>
-                  <td style={{ padding: '10px 16px' }}>
-                    <div className="efx-flex efx-gap-xs">
+          <div className="sl-table-wrapper">
+            <table className="sl-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Slug</th>
+                  <th>Order</th>
+                  <th>Sections</th>
+                  <th className="sl-text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map((cat) => (
+                  <tr key={cat.id}>
+                    <td><strong>{cat.name}</strong></td>
+                    <td className="sl-text-subdued"><span className="sl-code" style={{fontFamily: 'monospace', fontSize: '0.85rem'}}>{cat.slug}</span></td>
+                    <td className="sl-text-subdued">{cat.sort_order}</td>
+                    <td className="sl-text-subdued">{cat._count.sections}</td>
+                    <td className="sl-text-right">
                       <Form method="post" style={{ display: 'inline' }}>
                         <input type="hidden" name="intent" value="delete" />
                         <input type="hidden" name="id" value={cat.id} />
                         <button
                           type="submit"
-                          className="efx-button"
-                          style={{ padding: '4px 10px', fontSize: '0.8rem', color: '#ef4444', background: 'transparent', border: '1px solid #fecaca' }}
+                          className="sl-btn sl-btn-secondary sl-btn-sm"
+                          style={{ color: 'var(--sl-color-error)', borderColor: 'var(--sl-color-error-muted)' }}
                           onClick={(e) => { if (!window.confirm(`Delete "${cat.name}"?`)) e.preventDefault(); }}
                           disabled={isSubmitting}
                         >
                           Delete
                         </button>
                       </Form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

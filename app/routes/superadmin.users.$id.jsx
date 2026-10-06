@@ -54,57 +54,57 @@ export default function SuperadminUsersEdit() {
   const actionData = useActionData();
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-lg">
-      <div className="efx-flex efx-items-center efx-justify-between">
-        <div className="efx-flex efx-items-center efx-gap-md">
-          <Link to="/superadmin/users" className="efx-button" style={{textDecoration: 'none'}}>
+    <div className="sl-page-container">
+      <div className="sl-page-header sl-flex sl-justify-between sl-items-center">
+        <div className="sl-flex sl-items-center sl-gap-4">
+          <Link to="/superadmin/users" className="sl-btn sl-btn-secondary">
             ← Back
           </Link>
-          <h1 className="efx-heading-xl" style={{margin:0}}>Edit User</h1>
+          <h1 className="sl-page-title" style={{marginBottom: 0}}>Edit User</h1>
         </div>
         
         <Form method="post" onSubmit={e => { if(!confirm("Are you sure you want to delete this user?")) e.preventDefault() }}>
           <input type="hidden" name="intent" value="delete" />
-          <button type="submit" className="efx-button" style={{color: 'var(--efx-color-error)', border: '1px solid var(--efx-color-error)', background: 'transparent'}}>
+          <button type="submit" className="sl-btn sl-btn-secondary" style={{ color: 'var(--sl-color-error)', borderColor: 'var(--sl-color-error-muted)' }}>
             Delete User
           </button>
         </Form>
       </div>
 
-      <div className="efx-glass-card" style={{ maxWidth: '600px' }}>
+      <div className="sl-card sa-form-card" style={{ maxWidth: '600px', margin: '0 auto' }}>
         {actionData?.error && (
-          <div style={{ padding: '12px', background: 'var(--efx-color-error)', color: 'white', borderRadius: '4px', marginBottom: '16px' }}>
-            {actionData.error}
+          <div className="sl-p-6 sl-pb-0">
+            <div className="sl-alert sl-alert-error" role="alert">{actionData.error}</div>
           </div>
         )}
-        <Form method="post" className="efx-flex efx-flex-col efx-gap-md">
+        <Form method="post" className="sa-form-section">
           <input type="hidden" name="intent" value="edit" />
           
-          <div className="efx-flex efx-flex-col efx-gap-xs">
-            <label className="efx-text-body" style={{ fontWeight: 500 }}>Name</label>
-            <input type="text" name="name" defaultValue={user.name} className="efx-input" required />
+          <div className="sl-field">
+            <label className="sl-label-text">Name</label>
+            <input type="text" name="name" defaultValue={user.name} className="sl-input" required />
           </div>
 
-          <div className="efx-flex efx-flex-col efx-gap-xs">
-            <label className="efx-text-body" style={{ fontWeight: 500 }}>Email</label>
-            <input type="email" name="email" defaultValue={user.email} className="efx-input" required />
+          <div className="sl-field">
+            <label className="sl-label-text">Email</label>
+            <input type="email" name="email" defaultValue={user.email} className="sl-input" required />
           </div>
           
-          <div className="efx-flex efx-flex-col efx-gap-xs">
-            <label className="efx-text-body" style={{ fontWeight: 500 }}>Role</label>
-            <select name="role" defaultValue={user.role} className="efx-input">
+          <div className="sl-field">
+            <label className="sl-label-text">Role</label>
+            <select name="role" defaultValue={user.role} className="sl-select">
               <option value="ADMIN">Admin</option>
               <option value="STAFF">Staff</option>
             </select>
           </div>
 
-          <div className="efx-flex efx-flex-col efx-gap-xs">
-            <label className="efx-text-body" style={{ fontWeight: 500 }}>New Password (leave blank to keep current)</label>
-            <input type="password" name="password" className="efx-input" minLength="6" />
+          <div className="sl-field">
+            <label className="sl-label-text">New Password <span className="sa-hint">(leave blank to keep current)</span></label>
+            <input type="password" name="password" className="sl-input" minLength="6" />
           </div>
 
-          <div className="efx-flex efx-justify-end efx-mt-md">
-            <button type="submit" className="efx-button efx-button-primary">
+          <div className="sa-form-footer">
+            <button type="submit" className="sl-btn sl-btn-primary">
               Save Changes
             </button>
           </div>

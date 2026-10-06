@@ -1,4 +1,4 @@
-import { useActionData, Form, redirect } from "react-router";
+import { useActionData, useNavigation, Form, redirect } from "react-router";
 import { sessionStorage } from "../superadmin.server";
 
 import bcrypt from "bcryptjs";
@@ -42,39 +42,52 @@ export const action = async ({ request }) => {
 
 export default function SuperadminLogin() {
   const actionData = useActionData();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
 
   return (
-    <div className="efx-flex efx-items-center efx-justify-center" style={{ minHeight: '100vh', background: 'var(--efx-bg-gradient)' }}>
-      <div className="efx-glass-card efx-flex efx-flex-col efx-gap-md" style={{ width: '100%', maxWidth: '400px' }}>
-        <h1 className="efx-heading-xl" style={{ textAlign: 'center', marginBottom: '8px' }}>Admin Login</h1>
-        <p className="efx-text-subdued" style={{ textAlign: 'center' }}>
-          Enter the master password to access the super admin portal.
-        </p>
+    <div className="sa-login">
+      <div className="sa-login-card">
+        <div className="sl-flex sl-flex-col sl-items-center sl-gap-3 sl-text-center">
+          <div className="sa-brand-mark" style={{ width: 44, height: 44, fontSize: 17 }}>SL</div>
+          <div>
+            <h1 className="sl-page-title">Super Admin</h1>
+            <p className="sl-body sl-mt-1">Sign in to manage Section Lift.</p>
+          </div>
+        </div>
 
         {actionData?.error && (
-          <div style={{ padding: '12px', background: 'var(--efx-color-error)', color: 'white', borderRadius: '4px', textAlign: 'center' }}>
-            {actionData.error}
-          </div>
+          <div className="sl-alert sl-alert-error" role="alert">{actionData.error}</div>
         )}
 
-        <Form method="post" className="efx-flex efx-flex-col efx-gap-md">
-          <input 
-            type="text" 
-            name="email" 
-            placeholder="Email (or 'admin' for master)" 
-            className="efx-input" 
-            required
-            autoFocus
-          />
-          <input 
-            type="password" 
-            name="password" 
-            placeholder="Password" 
-            className="efx-input" 
-            required
-          />
-          <button type="submit" className="efx-button efx-button-primary">
-            Login
+        <Form method="post" className="sl-flex sl-flex-col sl-gap-4">
+          <div className="sl-field">
+            <label htmlFor="sa-email" className="sl-label-text" style={{ marginBottom: 0 }}>Email</label>
+            <input
+              id="sa-email"
+              type="text"
+              name="email"
+              placeholder="you@company.com"
+              className="sl-input"
+              autoComplete="username"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="sl-field">
+            <label htmlFor="sa-password" className="sl-label-text" style={{ marginBottom: 0 }}>Password</label>
+            <input
+              id="sa-password"
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              className="sl-input"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          <button type="submit" className="sl-btn sl-btn-primary sl-btn-lg sl-w-full sl-mt-2" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in…" : "Sign in"}
           </button>
         </Form>
       </div>

@@ -1,0 +1,24 @@
+name = "ab-tracking-pixel"
+type = "web_pixel_extension"
+uid = "f4ccb0c5-3026-862f-3491-ad32148e92eee8338348"
+
+runtime_context = "strict"
+
+[settings]
+type = "object"
+
+[settings.fields.accountID]
+name = "Account ID"
+description = "Account ID"
+type = "single_line_text_field"
+validations =  [
+  { name = "min", value = "1" }
+]
+
+[settings.fields.trackUrl]
+name = "Track URL"
+description = "The app server URL used to send purchase events. Injected automatically by the app."
+type = "single_line_text_field"
+
+[network_access]
+direct_api_mode = "unrestricted"

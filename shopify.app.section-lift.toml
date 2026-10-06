@@ -16,9 +16,11 @@ api_version = "2026-10"
   uri = "/webhooks/app/uninstalled"
   topics = [ "app/uninstalled" ]
 
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/orders/create"
-  topics = [ "orders/create" ]
+  # orders/create webhook removed from toml — requires Shopify Protected Customer Data approval.
+  # Re-add via Partner Dashboard → API access → Webhooks after approval is granted.
+  # [[webhooks.subscriptions]]
+  # uri = "/webhooks/orders/create"
+  # topics = [ "orders/create" ]
 
   [[webhooks.subscriptions]]
   compliance_topics = [ "customers/data_request" ]

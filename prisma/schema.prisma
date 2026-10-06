@@ -141,7 +141,27 @@ model ABTest {
   page_url         String?         // URL where the test runs, e.g., "/" or "/products/some-product"
   original_id      String          // HTML ID/Class of original section (e.g. #shopify-section-123)
   variant_id       String          // HTML ID/Class of variant section (e.g. #shopify-section-456)
-  traffic_split    Int             @default(50) // Percentage to Variant
+  traffic_split    Int             @default(50) // Percentage to Variant B
+  
+  // New variants
+  variant_c_id     String?         // HTML ID/Class of variant C
+  traffic_split_c  Int?            // Percentage to Variant C
+  variant_d_id     String?         // HTML ID/Class of variant D
+  traffic_split_d  Int?            // Percentage to Variant D
+
+  // Targeting & Scheduling
+  utm_campaign        String?         // Target specific UTM campaign
+  target_device       String?         @default("ALL") // ALL, DESKTOP, MOBILE, IOS, ANDROID
+  target_visitor_type String?         @default("ALL") // ALL, NEW, RETURNING
+  start_date          DateTime?       // Optional start schedule
+  end_date            DateTime?       // Optional end schedule
+
+  // Automatic Winner
+  auto_winner_enabled        Boolean  @default(false)
+  auto_winner_metric         String?  // e.g. "CONVERSION_RATE" or "CLICK_THROUGH_RATE"
+  auto_winner_threshold_days Int?
+  winning_variant_id         String?  // e.g. "A", "B", "C", "D"
+
   created_at       DateTime        @default(now())
   updated_at       DateTime        @updatedAt
 
@@ -152,9 +172,12 @@ model ABTestEvent {
   id             String    @id @default(uuid())
   test_id        String
   shop_domain    String
-  visitor_id     String    // Cookie ID
+  visitor_id     String    // Cookie ID or order ID (webhook path)
   variant        String    // "A" (Original) or "B" (Variant)
   event_type     String    // "VIEW", "CLICK", "ADD_TO_CART", "PURCHASE"
+  visitor_source String?   // e.g. "Paid", "Organic", "Direct"
+  revenue        Float?    // Sales amount if event is PURCHASE
+  order_id       String?   // Shopify order ID for deduplication between pixel and webhook
   created_at     DateTime  @default(now())
 
   test           ABTest    @relation(fields: [test_id], references: [id], onDelete: Cascade)

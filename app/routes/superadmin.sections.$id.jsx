@@ -2,6 +2,7 @@ import { useLoaderData, Form, redirect, useNavigation, useActionData } from "rea
 import fs from "node:fs/promises";
 import path from "node:path";
 import prisma from "../db.server";
+import SectionForm from "../components/SectionForm";
 
 export const loader = async ({ params }) => {
   const categories = await prisma.category.findMany({ orderBy: { sort_order: "asc" } });
@@ -106,130 +107,29 @@ export default function EditSection() {
   const liquidContent = section.versions?.[0]?.liquid_content || "";
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-lg">
-      <div className="efx-flex efx-justify-between efx-items-end">
+    <div className="sl-page-container">
+      <div className="sl-page-header sl-flex sl-justify-between sl-items-center">
         <div>
-          <h1 className="efx-heading-xl" style={{margin:0}}>Edit Section: {section.name}</h1>
+          <h1 className="sl-page-title">Edit Section: {section.name}</h1>
+          <p className="sl-page-desc">Modify the details and liquid code of this section.</p>
         </div>
         <Form method="post" onSubmit={e => !window.confirm("Delete this section permanently?") && e.preventDefault()}>
           <input type="hidden" name="intent" value="delete" />
-          <button type="submit" className="efx-button" style={{ color: 'var(--efx-color-error)', border: '1px solid var(--efx-color-error)' }}>
+          <button type="submit" className="sl-btn sl-btn-secondary" style={{ color: 'var(--sl-color-error)', borderColor: 'var(--sl-color-error-muted)' }}>
             Delete Section
           </button>
         </Form>
       </div>
 
-      {actionData?.error && (
-        <div style={{ padding: '12px', background: 'var(--efx-color-error)', color: 'white', borderRadius: '4px', maxWidth: '800px' }}>
-          {actionData.error}
-        </div>
-      )}
-
-      <Form method="post" encType="multipart/form-data" className="efx-glass-card efx-flex efx-flex-col efx-gap-md" style={{ maxWidth: '800px' }}>
-        <input type="hidden" name="intent" value="update" />
-        
-        <div className="efx-grid-2">
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Name</label>
-            <input type="text" name="name" defaultValue={section.name} className="efx-input" required />
-          </div>
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>SKU (Unique)</label>
-            <input type="text" name="sku" defaultValue={section.sku} className="efx-input" required />
-          </div>
-        </div>
-
-        <div className="efx-grid-2">
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Handle (Unique, URL friendly)</label>
-            <input type="text" name="handle" defaultValue={section.handle} className="efx-input" required />
-          </div>
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Type</label>
-            <select name="type" defaultValue={section.type || "SECTION"} className="efx-input" required>
-              <option value="SECTION">Section</option>
-              <option value="PAGE">Page</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="efx-grid-2">
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Category</label>
-            <select name="category_id" defaultValue={section.category_id || ""} className="efx-input" required>
-              <option value="">Select Category</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div className="efx-grid-2">
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Price (USD)</label>
-            <input type="number" step="0.01" name="price" defaultValue={section.price} className="efx-input" required />
-          </div>
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Is Free?</label>
-            <select name="is_free" defaultValue={section.is_free ? "true" : "false"} className="efx-input" required>
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="efx-grid-2">
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Is Exclusive? (Excluded from Subscription)</label>
-            <select name="is_exclusive" defaultValue={section.is_exclusive ? "true" : "false"} className="efx-input" required>
-              <option value="false">No</option>
-              <option value="true">Yes</option>
-            </select>
-          </div>
-          <div className="efx-flex efx-flex-col efx-gap-sm">
-            <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Is Featured?</label>
-            <select name="is_featured" defaultValue={section.is_featured ? "true" : "false"} className="efx-input" required>
-              <option value="false">No</option>
-              <option value="true">Yes</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="efx-flex efx-flex-col efx-gap-sm">
-          <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Tag (Optional)</label>
-          <input type="text" name="tag" defaultValue={section.tag || ""} className="efx-input" placeholder="e.g. Banner, Slider" />
-        </div>
-
-        <div className="efx-flex efx-flex-col efx-gap-sm">
-          <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Preview Image Upload (Leave blank to keep current)</label>
-          {section.preview_image_url && (
-             <div style={{ marginBottom: '8px' }}>
-               <img src={section.preview_image_url} alt="Current Preview" style={{ width: '120px', borderRadius: '4px' }} />
-             </div>
-          )}
-          <input type="file" name="preview_image" accept="image/*" className="efx-input" style={{ padding: '8px', cursor: 'pointer' }} />
-        </div>
-
-        <div className="efx-flex efx-flex-col efx-gap-sm">
-          <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Short Description</label>
-          <input type="text" name="short_description" defaultValue={section.short_description || ""} className="efx-input" />
-        </div>
-
-        <div className="efx-flex efx-flex-col efx-gap-sm">
-          <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Full Description</label>
-          <textarea name="full_description" defaultValue={section.full_description || ""} className="efx-input" rows="3"></textarea>
-        </div>
-
-        <div className="efx-flex efx-flex-col efx-gap-sm">
-          <label className="efx-text-body" style={{margin: 0, fontWeight: 500}}>Liquid Code Content</label>
-          <textarea name="liquid_content" defaultValue={liquidContent} className="efx-input" rows="10" style={{ fontFamily: 'monospace' }} required></textarea>
-        </div>
-
-        <div className="efx-flex efx-justify-end efx-mt-md">
-          <button type="submit" className="efx-button efx-button-primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </Form>
+      <SectionForm 
+        categories={categories}
+        section={section}
+        liquidContent={liquidContent}
+        isSubmitting={isSubmitting}
+        submitLabel="Save Changes"
+        submittingLabel="Saving..."
+        error={actionData?.error}
+      />
     </div>
   );
 }

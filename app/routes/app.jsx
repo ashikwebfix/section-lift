@@ -5,8 +5,6 @@ import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
-
-  // eslint-disable-next-line no-undef
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };
 
@@ -16,21 +14,22 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Home</s-link>
+        <s-link href="/app">Dashboard</s-link>
         <s-link href="/app/discover">Sections</s-link>
         <s-link href="/app/pages">Pages</s-link>
-        <s-link href="/app/my-sections">My Sections</s-link>
-        <s-link href="/app/history">Manage Installations</s-link>
+        <s-link href="/app/my-sections">Library</s-link>
+        <s-link href="/app/history">Installations</s-link>
         <s-link href="/app/ab-testing">A/B Testing</s-link>
         <s-link href="/app/pricing">Pricing</s-link>
         <s-link href="/app/support">Support</s-link>
       </s-app-nav>
-      <Outlet />
+      <div className="sl-page-full">
+        <Outlet />
+      </div>
     </AppProvider>
   );
 }
 
-// Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {
   return boundary.error(useRouteError());
 }

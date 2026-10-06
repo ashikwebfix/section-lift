@@ -8,53 +8,63 @@ export const loader = async ({ request }) => {
 
 export default function Support() {
   return (
-    <div className="efx-flex efx-flex-col efx-gap-lg" style={{ padding: '32px' }}>
-      <h1 className="efx-heading-xl">Support &amp; FAQs</h1>
+    <div style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "32px", maxWidth: "1000px" }}>
+      <div>
+        <h1 className="sl-page-title">Support &amp; FAQs</h1>
+        <p className="sl-body sl-mt-1">Find answers to common questions or reach out to our team.</p>
+      </div>
       
-      <div className="efx-grid-2">
-        <div className="efx-glass-card">
-          <h2 className="efx-heading-lg">Frequently Asked Questions</h2>
+      <div className="sl-grid-2">
+        <div className="sl-card sl-card-body" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          <h2 className="sl-section-title">Frequently Asked Questions</h2>
           
-          <div className="efx-mt-lg">
-            <h3 className="efx-heading-md">How do I edit a section after installing it?</h3>
-            <p className="efx-text-body">
+          <div>
+            <h3 className="sl-card-title">How do I edit a section after installing it?</h3>
+            <p className="sl-body sl-mt-2">
               Go to your Shopify Admin, click "Online Store" &gt; "Themes", and click "Customize" on the theme you installed the section into. You will find the section available in your Theme Editor just like any native section.
             </p>
           </div>
 
-          <div className="efx-mt-lg">
-            <h3 className="efx-heading-md">What happens if I uninstall the app?</h3>
-            <p className="efx-text-body">
+          <hr className="sl-divider" />
+
+          <div>
+            <h3 className="sl-card-title">What happens if I uninstall the app?</h3>
+            <p className="sl-body sl-mt-2">
               Any section you have installed will remain in your theme permanently. Our sections are 100% native Liquid code without hidden dependencies.
             </p>
           </div>
 
-          <div className="efx-mt-lg">
-            <h3 className="efx-heading-md">Can I install a section on multiple themes?</h3>
-            <p className="efx-text-body">
+          <hr className="sl-divider" />
+
+          <div>
+            <h3 className="sl-card-title">Can I install a section on multiple themes?</h3>
+            <p className="sl-body sl-mt-2">
               Yes! Once you own a section, you can install it on as many themes as you want within this specific Shopify store.
             </p>
           </div>
         </div>
 
-        <div className="efx-glass-card">
-          <h2 className="efx-heading-lg">Contact Support</h2>
-          <p className="efx-text-body">Need help? Send us a message and our team will get back to you within 24 hours.</p>
+        <div className="sl-card sl-card-body">
+          <h2 className="sl-section-title">Contact Support</h2>
+          <p className="sl-body sl-mt-2 sl-mb-6">Need help? Send us a message and our team will get back to you within 24 hours.</p>
           
-          <div className="efx-mt-lg">
-            <div className="efx-flex efx-flex-col efx-gap-md">
-              <div>
-                <div className="efx-text-subdued efx-mb-sm" style={{fontWeight: 600}}>Subject</div>
-                <input type="text" className="efx-input" placeholder="How can we help?" />
-              </div>
-              <div>
-                <div className="efx-text-subdued efx-mb-sm" style={{fontWeight: 600}}>Message</div>
-                <textarea rows={4} className="efx-input" placeholder="Describe your issue..." />
-              </div>
-              <button className="efx-button efx-button-primary" disabled style={{width: '100%'}}>Send Message</button>
-              <p className="efx-text-subdued" style={{fontSize: '0.75rem', textAlign: 'center'}}>* Contact form is a mockup for MVP phase.</p>
-            </div>
+          <div className="sl-field sl-mb-4">
+            <label className="sl-label-text">Subject</label>
+            <input type="text" className="sl-input" placeholder="How can we help?" />
           </div>
+          
+          <div className="sl-field sl-mb-6">
+            <label className="sl-label-text">Message</label>
+            <textarea className="sl-input sl-textarea" placeholder="Describe your issue in detail..." />
+          </div>
+          
+          <button className="sl-btn sl-btn-primary sl-w-full" disabled>
+            Send Message
+          </button>
+          
+          <p className="sl-caption sl-mt-4 sl-text-center">
+            * Contact form is a mockup for MVP phase.
+          </p>
         </div>
       </div>
     </div>

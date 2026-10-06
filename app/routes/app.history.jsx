@@ -81,14 +81,12 @@ export const action = async ({ request }) => {
   }
 
   if (intent === "repair" || intent === "update_overwrite") {
-    // For repair, use the installed version. For update, use the latest version.
     let expectedContent = "";
     let versionIdToSet = installation.section_version_id;
 
     if (intent === "repair") {
       expectedContent = installation.section_version?.liquid_content || "";
     } else {
-      // Fetch latest version
       const latestVersion = await prisma.sectionVersion.findFirst({
         where: { section_id: installation.section_id },
         orderBy: { published_at: "desc" }
@@ -153,7 +151,6 @@ export const action = async ({ request }) => {
       return { success: false, error: json.data.themeFilesUpsert.userErrors[0].message };
     }
 
-    // Create a new Installation record
     await prisma.installation.create({
       data: {
         shop_domain: session.shop,
@@ -189,7 +186,7 @@ export const action = async ({ request }) => {
     if (json.data?.themeFilesDelete?.userErrors?.length > 0) {
       return { success: false, error: json.data.themeFilesDelete.userErrors[0].message };
     }
-    // Update installation status
+    
     await prisma.installation.update({
       where: { id: installationId },
       data: { status: "REMOVED" }
@@ -208,7 +205,6 @@ export default function History() {
     if (fetcher.data?.success) {
       if (fetcher.data.action === "repair") {
         shopify.toast.show("Section successfully repaired in theme!");
-        // Update local status to unchanged after repair
         setScanResults(prev => ({ ...prev, [fetcher.data.installationId]: "UNCHANGED" }));
       } else if (fetcher.data.action === "update_overwrite") {
         shopify.toast.show("Section successfully updated!");
@@ -234,150 +230,141 @@ export default function History() {
     fetcher.submit({ intent: "scan", installationId }, { method: "POST" });
   };
 
-  const getStatusBadge = (status) => {
-    switch(status) {
-      case "UNCHANGED": return <s-text color="success">Unchanged</s-text>;
-      case "MODIFIED": return <s-text color="warning">Modified Code</s-text>;
-      case "MISSING": return <s-text color="critical">File Missing</s-text>;
-      default: return <s-text color="subdued">Unknown</s-text>;
-    }
-  };
-
   const getStatusBadgeHtml = (status) => {
     switch(status) {
-      case "UNCHANGED": return <span className="efx-badge efx-badge-success" style={{margin: 0}}>Unchanged</span>;
-      case "MODIFIED": return <span className="efx-badge" style={{background: 'rgba(255, 193, 7, 0.2)', color: '#b28900', margin: 0}}>Modified Code</span>;
-      case "MISSING": return <span className="efx-badge efx-badge-neutral" style={{background: 'rgba(222, 54, 24, 0.1)', color: '#de3618', margin: 0}}>File Missing</span>;
-      default: return <span className="efx-badge efx-badge-neutral" style={{margin: 0}}>Unknown</span>;
+      case "UNCHANGED": return <span className="sl-badge sl-badge-success">Unchanged</span>;
+      case "MODIFIED": return <span className="sl-badge sl-badge-warning">Modified Code</span>;
+      case "MISSING": return <span className="sl-badge sl-badge-error">File Missing</span>;
+      default: return <span className="sl-badge sl-badge-default">Unknown</span>;
     }
   };
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-lg" style={{ padding: '32px' }}>
-      <div className="efx-flex efx-flex-col efx-gap-sm">
-        <h1 className="efx-heading-xl">Manage Installations</h1>
-        <p className="efx-text-body">
-          Manage the sections you have installed across your themes. Scan them to ensure they haven't been deleted or altered.
+    <div style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div>
+        <h1 className="sl-page-title">Manage Installations</h1>
+        <p className="sl-body sl-mt-1">
+          Scan your installed sections to ensure they haven't been deleted or altered.
         </p>
       </div>
 
       {installations.length === 0 ? (
-        <div className="efx-solid-card" style={{ textAlign: 'center', padding: '48px' }}>
-          <p className="efx-text-subdued">No active installations found.</p>
+        <div className="sl-card sl-card-body">
+          <div className="sl-empty-state">
+            <div className="sl-empty-state-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+            </div>
+            <p className="sl-body" style={{ fontWeight: 500 }}>No active installations found.</p>
+          </div>
         </div>
       ) : (
-        <div className="efx-glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '800px' }}>
-              <thead style={{ background: 'rgba(0,0,0,0.02)' }}>
-                <tr style={{ borderBottom: '1px solid var(--efx-border-solid)' }}>
-                  <th style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--efx-text-subdued)', fontSize: '0.875rem' }}>Date</th>
-                  <th style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--efx-text-subdued)', fontSize: '0.875rem' }}>Section</th>
-                  <th style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--efx-text-subdued)', fontSize: '0.875rem' }}>Theme</th>
-                  <th style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--efx-text-subdued)', fontSize: '0.875rem' }}>File State</th>
-                  <th style={{ padding: '16px 24px', fontWeight: 600, color: 'var(--efx-text-subdued)', fontSize: '0.875rem' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {installations.map((inst) => {
-                  const isScanning = fetcher.state === "submitting" && fetcher.formData?.get("installationId") === inst.id && fetcher.formData?.get("intent") === "scan";
-                  const currentStatus = scanResults[inst.id];
-                  const latestVersionId = inst.section?.versions?.[0]?.id;
-                  const isOutOfDate = latestVersionId && latestVersionId !== inst.section_version_id;
+        <div className="sl-card sl-table-wrap">
+          <table className="sl-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Section</th>
+                <th>Theme</th>
+                <th>File State</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {installations.map((inst) => {
+                const isScanning = fetcher.state === "submitting" && fetcher.formData?.get("installationId") === inst.id && fetcher.formData?.get("intent") === "scan";
+                const currentStatus = scanResults[inst.id];
+                const latestVersionId = inst.section?.versions?.[0]?.id;
+                const isOutOfDate = latestVersionId && latestVersionId !== inst.section_version_id;
 
-                  return (
-                    <tr key={inst.id} style={{ borderBottom: '1px solid var(--efx-border-solid)', transition: 'background 0.2s' }}>
-                      <td style={{ padding: '16px 24px', fontSize: '0.875rem' }}>{new Date(inst.installed_at).toLocaleDateString()}</td>
-                      <td style={{ padding: '16px 24px', fontWeight: 500 }}>{inst.section.name}</td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div className="efx-flex efx-flex-col">
-                          <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{inst.theme_name}</span>
-                          <span className="efx-text-subdued" style={{ fontSize: '0.75rem' }}>({inst.theme_role})</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        {currentStatus ? getStatusBadgeHtml(currentStatus) : <span className="efx-text-subdued" style={{fontSize: '0.875rem'}}>Not scanned</span>}
-                      </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div className="efx-flex efx-flex-row efx-gap-sm efx-items-center efx-flex-wrap">
-                          <button 
-                            className="efx-button efx-button-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                            onClick={() => handleScan(inst.id)}
-                            disabled={isScanning}
+                return (
+                  <tr key={inst.id}>
+                    <td>{new Date(inst.installed_at).toLocaleDateString()}</td>
+                    <td style={{ fontWeight: 500 }}>{inst.section.name}</td>
+                    <td>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontWeight: 500 }}>{inst.theme_name}</span>
+                        <span className="sl-caption">({inst.theme_role})</span>
+                      </div>
+                    </td>
+                    <td>
+                      {currentStatus ? getStatusBadgeHtml(currentStatus) : <span className="sl-caption">Not scanned</span>}
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        <button 
+                          className="sl-btn sl-btn-secondary sl-btn-sm"
+                          onClick={() => handleScan(inst.id)}
+                          disabled={isScanning}
+                        >
+                          {isScanning ? "Scanning..." : "Scan"}
+                        </button>
+                        
+                        {currentStatus === "MISSING" && (
+                          <button
+                            className="sl-btn sl-btn-primary sl-btn-sm"
+                            onClick={() => fetcher.submit({ intent: "repair", installationId: inst.id }, { method: "POST" })}
+                            disabled={fetcher.state === "submitting"}
                           >
-                            {isScanning ? 'Scanning...' : 'Scan'}
+                            Repair
                           </button>
-                          
-                          {currentStatus === "MISSING" && (
-                            <button
-                              className="efx-button efx-button-primary"
-                              style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                              onClick={() => fetcher.submit({ intent: "repair", installationId: inst.id }, { method: "POST" })}
-                              disabled={fetcher.state === "submitting"}
-                            >
-                              Repair
-                            </button>
-                          )}
+                        )}
 
-                          {isOutOfDate && currentStatus === "UNCHANGED" && (
-                            <button
-                              className="efx-button efx-button-primary"
-                              style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                              onClick={() => fetcher.submit({ intent: "update_overwrite", installationId: inst.id }, { method: "POST" })}
-                              disabled={fetcher.state === "submitting"}
-                            >
-                              Update (1-Click)
-                            </button>
-                          )}
+                        {isOutOfDate && currentStatus === "UNCHANGED" && (
+                          <button
+                            className="sl-btn sl-btn-primary sl-btn-sm"
+                            onClick={() => fetcher.submit({ intent: "update_overwrite", installationId: inst.id }, { method: "POST" })}
+                            disabled={fetcher.state === "submitting"}
+                          >
+                            Update (1-Click)
+                          </button>
+                        )}
 
-                          {isOutOfDate && currentStatus === "MODIFIED" && (
-                            <>
-                              <button
-                                className="efx-button efx-button-danger"
-                                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                                onClick={() => {
-                                  if (confirm("This will overwrite your customizations! Are you sure?")) {
-                                    fetcher.submit({ intent: "update_overwrite", installationId: inst.id }, { method: "POST" });
-                                  }
-                                }}
-                                disabled={fetcher.state === "submitting"}
-                              >
-                                Overwrite
-                              </button>
-                              <button
-                                className="efx-button efx-button-primary"
-                                style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                                onClick={() => fetcher.submit({ intent: "update_new_copy", installationId: inst.id }, { method: "POST" })}
-                                disabled={fetcher.state === "submitting"}
-                              >
-                                Update as New Copy
-                              </button>
-                            </>
-                          )}
-
-                          {currentStatus !== "MISSING" && currentStatus !== undefined && (
+                        {isOutOfDate && currentStatus === "MODIFIED" && (
+                          <>
                             <button
-                              className="efx-button efx-button-danger"
-                              style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                              className="sl-btn sl-btn-danger sl-btn-sm"
                               onClick={() => {
-                                if (confirm("Are you sure you want to delete this section from the theme?")) {
-                                  fetcher.submit({ intent: "delete", installationId: inst.id }, { method: "POST" });
+                                if (confirm("This will overwrite your customizations! Are you sure?")) {
+                                  fetcher.submit({ intent: "update_overwrite", installationId: inst.id }, { method: "POST" });
                                 }
                               }}
                               disabled={fetcher.state === "submitting"}
                             >
-                              Delete
+                              Overwrite
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            <button
+                              className="sl-btn sl-btn-primary sl-btn-sm"
+                              onClick={() => fetcher.submit({ intent: "update_new_copy", installationId: inst.id }, { method: "POST" })}
+                              disabled={fetcher.state === "submitting"}
+                            >
+                              Update as New Copy
+                            </button>
+                          </>
+                        )}
+
+                        {currentStatus !== "MISSING" && currentStatus !== undefined && (
+                          <button
+                            className="sl-btn sl-btn-danger sl-btn-sm"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this section from the theme?")) {
+                                fetcher.submit({ intent: "delete", installationId: inst.id }, { method: "POST" });
+                              }
+                            }}
+                            disabled={fetcher.state === "submitting"}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

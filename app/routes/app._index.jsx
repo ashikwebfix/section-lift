@@ -6,7 +6,6 @@ import prisma from "../db.server";
 export const loader = async ({ request }) => {
   const { session, billing } = await authenticate.admin(request);
 
-  // Stats
   const entitlementsCount = await prisma.entitlement.count({
     where: { shop_domain: session.shop, status: "ACTIVE" },
   });
@@ -15,7 +14,6 @@ export const loader = async ({ request }) => {
     where: { shop_domain: session.shop, status: "ACTIVE" },
   });
 
-  // Total sections and pages available in the store
   const totalSections = await prisma.section.count({
     where: { status: "PUBLISHED", type: "SECTION" },
   });
@@ -24,13 +22,11 @@ export const loader = async ({ request }) => {
     where: { status: "PUBLISHED", type: "PAGE" },
   });
 
-  // Billing Check
   const { hasActivePayment } = await billing.check({
     plans: [MONTHLY_PLAN],
     isTest: true,
   });
 
-  // Claims this month
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
@@ -39,157 +35,240 @@ export const loader = async ({ request }) => {
     where: {
       shop_domain: session.shop,
       source_type: "SUBSCRIPTION",
-      granted_at: {
-        gte: startOfMonth,
-      }
-    }
+      granted_at: { gte: startOfMonth },
+    },
   });
 
-  const SUBSCRIPTION_LIMIT = process.env.SUBSCRIPTION_LIMIT ? parseInt(process.env.SUBSCRIPTION_LIMIT) : 10;
+  const SUBSCRIPTION_LIMIT = process.env.SUBSCRIPTION_LIMIT
+    ? parseInt(process.env.SUBSCRIPTION_LIMIT)
+    : 10;
 
-  // Featured Sections
   const featuredSections = await prisma.section.findMany({
     where: { is_featured: true, status: "PUBLISHED" },
     take: 6,
     include: { category: true },
-    orderBy: { created_at: 'desc' }
+    orderBy: { created_at: "desc" },
   });
 
-  return { 
-    entitlementsCount, 
+  return {
+    entitlementsCount,
     installationsCount,
     totalSections,
     totalPages,
-    hasSubscription: hasActivePayment, 
-    claimsThisMonth, 
+    hasSubscription: hasActivePayment,
+    claimsThisMonth,
     subscriptionLimit: SUBSCRIPTION_LIMIT,
-    featuredSections 
+    featuredSections,
   };
 };
 
+const GridIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+    <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+  </svg>
+);
+
+const FileIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>
+);
+
+const BookmarkIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const InstallIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+    <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+  </svg>
+);
+
+const ArrowRight = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+  </svg>
+);
+
 export default function Index() {
-  const { entitlementsCount, installationsCount, totalSections, totalPages, hasSubscription, claimsThisMonth, subscriptionLimit, featuredSections } = useLoaderData();
+  const {
+    entitlementsCount,
+    installationsCount,
+    totalSections,
+    totalPages,
+    hasSubscription,
+    claimsThisMonth,
+    subscriptionLimit,
+    featuredSections,
+  } = useLoaderData();
+
+  const claimPct = Math.min((claimsThisMonth / subscriptionLimit) * 100, 100);
 
   return (
-    <div className="efx-flex efx-flex-col efx-gap-xl" style={{ padding: '32px', maxWidth: '1200px', margin: '0 auto' }}>
-      
-      {/* Header Area */}
-      <div className="efx-flex efx-justify-between efx-items-center">
+    <div style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "28px" }}>
+
+      {/* ── Page Header ── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
         <div>
-          <h1 className="efx-heading-xl" style={{margin: 0}}>Dashboard</h1>
-          <p className="efx-text-subdued efx-mt-sm">Welcome back to Section Lift.</p>
+          <h1 className="sl-page-title">Dashboard</h1>
+          <p className="sl-body sl-mt-1">Welcome back to Section Lift.</p>
         </div>
-        <div className="efx-flex efx-gap-sm">
-          <Link to="/app/discover" className="efx-button efx-button-primary" style={{textDecoration: 'none'}}>
-            Browse Sections &rarr;
+        <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+          <Link to="/app/discover" className="sl-btn sl-btn-primary" style={{ textDecoration: "none" }}>
+            Browse Sections <ArrowRight />
           </Link>
-          <Link to="/app/pages" className="efx-button efx-button-secondary" style={{textDecoration: 'none'}}>
-            Browse Pages &rarr;
+          <Link to="/app/pages" className="sl-btn sl-btn-secondary" style={{ textDecoration: "none" }}>
+            Browse Pages
           </Link>
         </div>
       </div>
 
-      {/* Quick Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
-        <Link to="/app/discover" className="efx-solid-card" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
-          <div className="efx-text-subdued efx-mb-sm" style={{fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em'}}>Total Sections</div>
-          <div className="efx-heading-xl" style={{margin: 0, fontSize: '2rem'}}>{totalSections}</div>
+      {/* ── Stat Cards ── */}
+      <div className="sl-grid-4">
+        <Link to="/app/discover" className="sl-stat-card" style={{ textDecoration: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span className="sl-label">Sections</span>
+            <span style={{ opacity: 0.3 }}><GridIcon /></span>
+          </div>
+          <div className="sl-stat-value">{totalSections}</div>
+          <div className="sl-caption sl-mt-1">Available in catalog</div>
         </Link>
-        <Link to="/app/pages" className="efx-solid-card" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
-          <div className="efx-text-subdued efx-mb-sm" style={{fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em'}}>Total Pages</div>
-          <div className="efx-heading-xl" style={{margin: 0, fontSize: '2rem'}}>{totalPages}</div>
+
+        <Link to="/app/pages" className="sl-stat-card" style={{ textDecoration: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span className="sl-label">Pages</span>
+            <span style={{ opacity: 0.3 }}><FileIcon /></span>
+          </div>
+          <div className="sl-stat-value">{totalPages}</div>
+          <div className="sl-caption sl-mt-1">Available in catalog</div>
         </Link>
-        <Link to="/app/my-sections" className="efx-solid-card" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
-          <div className="efx-text-subdued efx-mb-sm" style={{fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em'}}>Owned</div>
-          <div className="efx-heading-xl" style={{margin: 0, fontSize: '2rem'}}>{entitlementsCount}</div>
+
+        <Link to="/app/my-sections" className="sl-stat-card" style={{ textDecoration: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span className="sl-label">Owned</span>
+            <span style={{ opacity: 0.3 }}><BookmarkIcon /></span>
+          </div>
+          <div className="sl-stat-value">{entitlementsCount}</div>
+          <div className="sl-caption sl-mt-1">In your library</div>
         </Link>
-        <Link to="/app/history" className="efx-solid-card" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
-          <div className="efx-text-subdued efx-mb-sm" style={{fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em'}}>Installed</div>
-          <div className="efx-heading-xl" style={{margin: 0, fontSize: '2rem'}}>{installationsCount}</div>
+
+        <Link to="/app/history" className="sl-stat-card" style={{ textDecoration: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span className="sl-label">Installed</span>
+            <span style={{ opacity: 0.3 }}><InstallIcon /></span>
+          </div>
+          <div className="sl-stat-value">{installationsCount}</div>
+          <div className="sl-caption sl-mt-1">Active in themes</div>
         </Link>
       </div>
 
-      {/* Subscription Status Widget */}
-      <div className="efx-solid-card" style={{ border: hasSubscription ? '2px solid #111827' : '1px solid var(--efx-border-solid)' }}>
-        <div className="efx-flex efx-justify-between efx-items-center">
-          <div className="efx-flex efx-items-center efx-gap-md">
-            <div>
-              <div className="efx-flex efx-items-center efx-gap-sm efx-mb-xs">
-                <h2 className="efx-heading-lg" style={{margin: 0}}>Current Plan</h2>
-                {hasSubscription ? (
-                  <span style={{ background: '#059669', color: 'white', padding: '4px 10px', borderRadius: 'var(--efx-radius-pill)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em' }}>PRO</span>
-                ) : (
-                  <span style={{ background: '#6b7280', color: 'white', padding: '4px 10px', borderRadius: 'var(--efx-radius-pill)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em' }}>FREE</span>
-                )}
-              </div>
+      {/* ── Plan Banner ── */}
+      <div className={`sl-plan-banner ${hasSubscription ? "sl-plan-banner-active" : ""}`}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+              <span className="sl-section-title">Current Plan</span>
               {hasSubscription ? (
-                <div className="efx-flex efx-items-center efx-gap-lg efx-mt-sm">
-                  <div className="efx-text-subdued">
-                    Monthly claims: <strong style={{ color: 'var(--efx-text-main)' }}>{claimsThisMonth} / {subscriptionLimit}</strong>
-                  </div>
-                  <div style={{ width: '120px', height: '6px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${Math.min((claimsThisMonth / subscriptionLimit) * 100, 100)}%`, background: '#111827', borderRadius: '3px', transition: 'width 0.3s ease' }}></div>
-                  </div>
-                </div>
+                <span className="sl-plan-pill sl-badge-success" style={{ padding: "3px 8px", borderRadius: "99px" }}>
+                  <span className="sl-plan-pill-dot" style={{ background: "var(--sl-success)" }}></span>
+                  Pro
+                </span>
               ) : (
-                <p className="efx-text-subdued" style={{margin: 0}}>
-                  Upgrade to Pro to claim up to {subscriptionLimit} premium sections & pages every month.
-                </p>
+                <span className="sl-plan-pill sl-badge-default" style={{ padding: "3px 8px", borderRadius: "99px" }}>
+                  Free
+                </span>
               )}
             </div>
+
+            {hasSubscription ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                <span className="sl-body">
+                  Monthly claims: <strong style={{ color: "var(--sl-text-primary)" }}>{claimsThisMonth} / {subscriptionLimit}</strong>
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div className="sl-progress-track" style={{ width: "140px" }}>
+                    <div className="sl-progress-fill" style={{ width: `${claimPct}%` }}></div>
+                  </div>
+                  <span className="sl-caption">{Math.round(claimPct)}%</span>
+                </div>
+              </div>
+            ) : (
+              <p className="sl-body">
+                Upgrade to Pro to claim up to {subscriptionLimit} premium sections &amp; pages per month.
+              </p>
+            )}
           </div>
-          <Link to="/app/pricing" className={hasSubscription ? "efx-button efx-button-secondary" : "efx-button efx-button-primary"} style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            {hasSubscription ? 'Manage Subscription' : 'Upgrade to Pro'}
-          </Link>
         </div>
+
+        <Link
+          to="/app/pricing"
+          className={hasSubscription ? "sl-btn sl-btn-secondary" : "sl-btn sl-btn-primary"}
+          style={{ textDecoration: "none", flexShrink: 0 }}
+        >
+          {hasSubscription ? "Manage Subscription" : "Upgrade to Pro"}
+        </Link>
       </div>
 
-      {/* Featured Sections */}
+      {/* ── Featured Sections ── */}
       {featuredSections.length > 0 && (
-        <div className="efx-mt-xl">
-          <div className="efx-flex efx-justify-between efx-items-end efx-mb-lg">
-            <h2 className="efx-heading-lg" style={{margin: 0}}>Featured Sections</h2>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <h2 className="sl-section-title">Featured Sections</h2>
+            <Link to="/app/discover" className="sl-btn sl-btn-ghost sl-btn-sm" style={{ textDecoration: "none" }}>
+              View all <ArrowRight />
+            </Link>
           </div>
-          
-          <div className="efx-grid-3">
+
+          <div className="sl-grid-3">
             {featuredSections.map((section) => (
-              <Link 
-                to={`/app/sections/${section.handle}`} 
+              <Link
                 key={section.id}
-                className={`efx-glass-card efx-glass-card-interactive efx-flex efx-flex-col ${section.is_exclusive ? 'efx-premium-card' : ''}`} 
-                style={{ padding: section.is_exclusive ? '2px' : 0, textDecoration: 'none', color: 'inherit', display: 'block', overflow: 'hidden' }}
+                to={`/app/sections/${section.handle}`}
+                className="sl-section-card"
+                style={{ textDecoration: "none" }}
               >
-                <div style={{ height: '200px', backgroundColor: '#e4e5e7', position: 'relative', borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', overflow: 'hidden' }}>
+                <div className="sl-image-wrap">
                   {section.preview_image_url ? (
-                    <img src={section.preview_image_url} alt={section.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img
+                      src={section.preview_image_url}
+                      alt={section.name}
+                      className="sl-section-card-image"
+                    />
                   ) : (
-                    <div className="efx-flex efx-items-center efx-justify-center" style={{ height: '100%', color: '#8c9196' }}>No Preview</div>
+                    <div className="sl-section-card-image-placeholder">No Preview</div>
                   )}
-                  <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '8px' }}>
+                  <div className="sl-badge-overlay">
                     {section.is_free ? (
-                      <span style={{ background: 'var(--efx-color-success)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Free</span>
+                      <span className={`sl-badge sl-tier-free`}>Free</span>
                     ) : section.is_exclusive ? (
-                      <span className="efx-badge-premium" style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Premium</span>
+                      <span className={`sl-badge sl-tier-premium`}>Premium</span>
                     ) : (
-                      <span style={{ background: '#202223', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Pro</span>
+                      <span className={`sl-badge sl-tier-pro`}>Pro</span>
                     )}
                   </div>
                 </div>
-                <div className="efx-flex efx-flex-col efx-gap-xs" style={{ padding: '16px' }}>
-                  <span className="efx-text-subdued" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {section.category?.name || 'Section'}
+
+                <div className="sl-section-card-body">
+                  <span className="sl-caption">{section.category?.name || "Section"}</span>
+                  <span className="sl-card-title">{section.name}</span>
+                </div>
+
+                <div className="sl-section-card-footer">
+                  <span className="sl-body" style={{ fontWeight: 600 }}>
+                    {section.is_free ? "Free" : `$${section.price.toFixed(2)}`}
                   </span>
-                  <div className="efx-text-body" style={{ fontWeight: 600, fontSize: '16px' }}>{section.name}</div>
-                  {!section.is_free && (
-                    <div className="efx-text-subdued efx-mt-xs">${section.price.toFixed(2)}</div>
-                  )}
+                  <span className="sl-caption" style={{ color: "var(--sl-text-tertiary)" }}>View →</span>
                 </div>
               </Link>
             ))}
           </div>
         </div>
       )}
-
     </div>
   );
 }
